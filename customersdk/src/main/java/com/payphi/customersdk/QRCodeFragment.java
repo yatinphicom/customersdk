@@ -745,6 +745,7 @@ private String aggregatorID;
             params.put("originalTxnNo", tranRefNo);
             params.put("paymentMode", "UPIQR");
 
+
             if (!merchantId.equals(sharedpreferences.getString("mid", null).toString())) {
                 params.put("merchantID", sharedpreferences.getString("mid", null));
             }else{
