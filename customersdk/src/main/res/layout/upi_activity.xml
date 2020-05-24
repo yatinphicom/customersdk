@@ -1,0 +1,392 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:card_view="http://schemas.android.com/tools"
+    android:orientation="vertical"
+    android:background="#FFFFFF"
+    android:clickable="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#edeff2"
+        android:orientation="vertical">
+
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#FFFFFF"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:padding="0dp">
+
+            <android.support.v7.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="15dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginRight="15dp"
+                android:layout_marginBottom="5dp"
+                app:cardBackgroundColor="#ffffff"
+                card_view:cardCornerRadius="10dp">
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="96dp"
+                    android:layout_gravity="center_horizontal"
+                    android:src="@drawable/upi1" />
+            </android.support.v7.widget.CardView>
+
+
+        </LinearLayout>
+
+        <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:orientation="vertical">
+
+            <RelativeLayout
+                android:id="@+id/connect_help"
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                android:layout_above="@+id/bottomLogoLayout"
+                android:background="#ffffff"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:id="@+id/ll1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/layoutid"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <android.support.v7.widget.CardView
+                            android:layout_width="156dp"
+                            android:layout_height="156dp"
+                            android:layout_gravity="center_horizontal"
+                            android:layout_marginTop="20dp"
+                            android:layout_marginBottom="5dp"
+                            app:cardBackgroundColor="#ffffff">
+
+
+                            />
+                            <!-- <ImageView
+                                android:id="@+id/qrImage"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center_horizontal" />
+-->
+
+
+                        </android.support.v7.widget.CardView>
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="#a99999"
+
+                        android:orientation="horizontal"
+                        android:paddingLeft="4dp"
+                        android:paddingTop="4dp"
+                        android:paddingRight="4dp"
+                        android:paddingBottom="4dp">
+
+                        <TableLayout
+                            android:id="@+id/tablayoutid"
+                            android:layout_width="match_parent"
+                            android:layout_height="110dp"
+                            android:background="#F2F2F2"
+
+                            >
+
+
+                            <TableRow
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:background="#fff"
+                                android:padding="8dp">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginLeft="3dp"
+                                    android:layout_weight="1"
+                                    android:text="Requested Amount"
+                                    android:textColor="#000"
+
+                                    />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="right"
+                                    android:layout_weight="2"
+                                    android:gravity="right"
+                                    android:text="Rs. "
+                                    android:textColor="#000"
+
+                                    />
+
+                                <TextView
+                                    android:id="@+id/amtId"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="right"
+                                    android:layout_weight="3"
+                                    android:gravity="right"
+                                    android:text=""
+                                    android:textColor="#000"
+
+
+                                    />
+                            </TableRow>
+
+                            <TableRow
+                                android:id="@+id/qrserviceRowId"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:background="#fff"
+                                android:padding="8dp">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="Service Charge (Incl GST)"
+                                    android:textColor="#000"
+
+                                    />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="right"
+                                    android:layout_weight="2"
+                                    android:gravity="right"
+                                    android:text="Rs. "
+                                    android:textColor="#000"
+
+                                    />
+
+                                <TextView
+                                    android:id="@+id/qrservicechanrgeId"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="right"
+                                    android:layout_weight="3"
+                                    android:gravity="right"
+                                    android:text=""
+                                    android:textColor="#000"
+
+
+                                    />
+                            </TableRow>
+
+
+                            <TableRow
+                                android:id="@+id/qrtotamountRowId"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:background="#f2f2f2"
+
+                                android:padding="8dp">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginLeft="3dp"
+                                    android:layout_weight="1"
+                                    android:text="Total amount to be paid"
+                                    android:textColor="#000"
+
+                                    />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="right"
+                                    android:layout_weight="2"
+                                    android:gravity="right"
+                                    android:text="Rs. "
+                                    android:textColor="#000"
+
+                                    />
+
+                                <TextView
+                                    android:id="@+id/qrtotalamtId"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="right"
+                                    android:layout_weight="3"
+                                    android:gravity="right"
+                                    android:text=""
+                                    android:textColor="#000"
+
+                                    />
+                            </TableRow>
+
+
+                        </TableLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <RelativeLayout
+                    android:id="@+id/rl_progressbar"
+                    android:layout_below="@+id/msgId"
+                    android:layout_centerInParent="true"
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:padding="0dp"
+                    android:layout_margin="0dp"
+                    >
+                    <ProgressBar
+                        android:id="@+id/pb"
+                        android:layout_width="150dp"
+                        android:layout_height="150dp"
+                        style="@android:style/Widget.ProgressBar.Horizontal"
+                        android:progressDrawable="@drawable/circular"
+                        android:layout_centerInParent="true"
+                        />
+                    <TextView
+                        android:id="@+id/time"
+                        android:textStyle="bold"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-condensed"
+                        android:textColor="#000000"
+                        android:layout_centerInParent="true"
+                        />
+                </RelativeLayout>
+
+                <Button
+                    android:id="@+id/checkStatusUpiQr"
+                    android:layout_width="286dp"
+                    android:layout_height="wrap_content"
+                    android:layout_column="12"
+                    android:layout_below="@+id/msgId"
+                    android:layout_alignParentStart="true"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentEnd="true"
+                    android:layout_alignParentRight="true"
+                    android:layout_gravity="bottom"
+                    android:layout_marginStart="70dp"
+                    android:layout_marginLeft="70dp"
+                    android:layout_marginTop="50dp"
+                    android:layout_marginEnd="55dp"
+                    android:layout_marginRight="55dp"
+                    android:background="#3e8dc9"
+                    android:text="Check Status"
+                    android:textAllCaps="false"
+                    android:textColor="#ffff"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/msgId"
+                    android:layout_width="wrap_content"
+                    android:layout_height="87dp"
+                    android:layout_below="@+id/ll1"
+                    android:layout_alignParentStart="true"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentEnd="true"
+                    android:layout_alignParentRight="true"
+                    android:layout_marginStart="32dp"
+                    android:layout_marginLeft="32dp"
+                    android:layout_marginTop="23dp"
+                    android:layout_marginEnd="32dp"
+                    android:layout_marginRight="32dp"
+                    android:lineSpacingExtra="6dp"
+                    android:padding="6dp"
+                    android:text="In case you have done payment click verify payment button"
+                    android:textAlignment="center"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/proceedtoPayId"
+                    android:layout_width="286dp"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentTop="true"
+                    android:layout_alignParentEnd="true"
+                    android:layout_alignParentRight="true"
+                    android:layout_gravity="bottom"
+                    android:layout_marginStart="66dp"
+                    android:layout_marginLeft="66dp"
+                    android:layout_marginTop="137dp"
+                    android:layout_marginEnd="59dp"
+                    android:layout_marginRight="59dp"
+                    android:background="#3e8dc9"
+                    android:text="Proceed to Pay"
+                    android:textAllCaps="false"
+                    android:textColor="#ffff"
+                    android:textStyle="bold"></Button>
+
+            </RelativeLayout>
+
+            <TextView
+                android:id="@+id/line"
+                style="?android:attr/listSeparatorTextViewStyle"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_above="@+id/bottomLogoLayout"
+                android:background="#9f9b9b"
+                android:gravity="center_horizontal"
+                android:paddingTop="5dip" />
+
+            <LinearLayout
+                android:id="@+id/bottomLogoLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="60dp"
+                android:layout_alignParentBottom="true"
+
+                android:background="#ffffff"
+                android:orientation="vertical">
+
+                <android.support.v7.widget.CardView
+                    android:id="@+id/logosCardView"
+                    android:layout_width="240dp"
+                    android:layout_height="63dp"
+                    android:layout_gravity="center"
+                    android:elevation="0dp"
+                    app:cardBackgroundColor="#ffffff">
+
+                    <ImageView
+                        android:id="@+id/imgMC"
+                        android:layout_width="64dp"
+                        android:layout_height="57dp"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_margin="5dp"
+                        android:src="@drawable/npci" />
+
+                </android.support.v7.widget.CardView>
+
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_centerInParent="true"
+                android:layout_gravity="center"
+                android:layout_marginTop="30dp"
+                android:gravity="center"
+                android:text="Powered by PayPhi"
+                android:textStyle="bold|italic" />
+        </RelativeLayout>
+
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,41 @@
+
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.payphi.customersdk.WebViewPaymentClient"
+    >
+
+<RelativeLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <WebView xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/paywebviewId"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scrollbars="none"
+        android:layout_above="@+id/footer" />
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="28dp"
+        android:id="@+id/footer"
+        android:background="#004fb1"
+        android:layout_alignParentBottom="true"
+        >
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+
+            android:text="(c) PayPhi 2018. All rights reserved."
+            android:id="@+id/paytextView2"
+            android:layout_marginTop="3dp"
+            android:layout_marginBottom="3dp"
+            android:textColor="#fff"
+            android:layout_gravity="center_horizontal" />
+    </LinearLayout>
+</RelativeLayout>
+</RelativeLayout>
