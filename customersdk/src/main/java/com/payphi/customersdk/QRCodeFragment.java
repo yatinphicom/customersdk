@@ -211,8 +211,9 @@ private String aggregatorID;
                         txtTitle.setText("VPA Payment");
                         clicker.setEnabled(true);
                         rb1.setVisibility(View.GONE);
-                        rb2.setVisibility(View.GONE);
+                        //rb2.setVisibility(View.GONE);
                         input.setEnabled(true);
+                        //input.setVisibility(View.VISIBLE);
                         selection = "VPA";
                     }
                     dialog.show();
@@ -701,7 +702,7 @@ private String aggregatorID;
         enableflag = false;
         usermsg.setVisibility(View.VISIBLE);
         progressBar.setVisibility(View.GONE);
-        usermsg.setText("Payment Confirmation not yet received. Please click on verify in case of you have approved the the request.");
+        usermsg.setText("Payment confirmation not yet received. Please click on verify in case of you have approved the request.");
         statButton.setVisibility(View.VISIBLE);
         statButton.setEnabled(true);
         statButton.setText("Verify Payment");
@@ -765,7 +766,7 @@ private String aggregatorID;
 
                 @Override
                 public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
-                    Log.d("json rsponse",response.toString());
+                    //Log.d("json rsponse",response.toString());
                     if(!flag) {
                         paydialog.dismiss();
                     }
@@ -774,7 +775,7 @@ private String aggregatorID;
                         //JSONObject jsonObject = response.getJSONObject("resBody");
                         String txnId ="";
                         String responseCode = "";
-                         String merchantId=   "";
+                        String merchantId=   "";
                         String merchantTxnNo ="";
                         String txnStatus="" ;
                         String paymentDateTime="";
@@ -1364,7 +1365,6 @@ private String aggregatorID;
         return null;
     }
 
-
     private void GetSerCharge() {
        /* String amount = amt.getText().toString();
         amount = amount.replace("Rs. ","");
@@ -1389,7 +1389,6 @@ private String aggregatorID;
         }
 
         String secureHash = Utility.prepareSecureHash(secureToken, paramsMap);
-
 
         try {
             Context context = this.getActivity().getApplicationContext();
@@ -1568,6 +1567,4 @@ private String aggregatorID;
 
         }
     }
-
-
 }

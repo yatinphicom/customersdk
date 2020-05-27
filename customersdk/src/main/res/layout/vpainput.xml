@@ -17,13 +17,23 @@
         android:layout_alignParentTop="true"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true" />
+
     <LinearLayout
-        android:layout_width="match_parent"
-        android:paddingLeft="24dp"
         android:id="@+id/mainContent"
-        android:layout_marginTop="84dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:layout_below="@+id/textDialog"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentRight="true"
+        android:layout_marginStart="0dp"
+        android:layout_marginLeft="0dp"
+        android:layout_marginTop="17dp"
+        android:layout_marginEnd="0dp"
+        android:layout_marginRight="0dp"
+        android:orientation="vertical"
+        android:paddingLeft="24dp">
 
         <RadioGroup
             android:layout_width="match_parent"
@@ -48,30 +58,32 @@
         </RadioGroup>
 
         <EditText
+            android:id="@+id/vpaText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:id="@+id/vpaText"
-            android:layout_margin="24dp"
-            android:inputType="text"
-            android:textColor="#000"
-            android:hint="Eneter VPA"
             android:layout_alignTop="@+id/textView"
-            android:layout_alignParentLeft="true"
             android:layout_alignParentStart="true"
-            android:layout_marginTop="26dp" />
+            android:layout_alignParentLeft="true"
+            android:layout_margin="24dp"
+            android:layout_marginTop="26dp"
+            android:hint="Eneter VPA"
+            android:inputType="text"
+            android:textColor="#000" />
     </LinearLayout>
 
     <Button
         android:id="@+id/confButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_below="@+id/mainContent"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentLeft="true"
+        android:layout_marginStart="0dp"
+        android:layout_marginLeft="0dp"
+        android:layout_marginTop="29dp"
+        android:background="#0592fa"
         android:text=" Submit "
         android:textAllCaps="false"
-        android:background="#0592fa"
-        android:textColor="#FFF"
-        android:layout_below="@+id/mainContent"
-        android:layout_marginTop="8dp"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true" />
+        android:textColor="#FFF" />
 
 </RelativeLayout>

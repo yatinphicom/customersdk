@@ -182,7 +182,7 @@ public class PaymentOptions extends FragmentActivity {
             dialog.setIndeterminate(true);
             dialog.setCanceledOnTouchOutside(false);
             dialog.show();
-           String mid= sharedpreferences.getString("mid",null).toString();
+            String mid= sharedpreferences.getString("mid",null).toString();
             String appId= sharedpreferences.getString("appId",null).toString();
 
             Application app = new Application();
