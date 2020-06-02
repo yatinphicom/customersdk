@@ -83,7 +83,7 @@ public class QRCodeFragment extends Fragment {
     private String tranRefNo;
     private String merchantId;
     private String secureToken;
-private String aggregatorID;
+    private String aggregatorID;
     SharedPreferences sharedpreferences;
     TextView amtText;
     TextView servicetxt;
@@ -211,9 +211,7 @@ private String aggregatorID;
                         txtTitle.setText("VPA Payment");
                         clicker.setEnabled(true);
                         rb1.setVisibility(View.GONE);
-                        //rb2.setVisibility(View.GONE);
                         input.setEnabled(true);
-                        //input.setVisibility(View.VISIBLE);
                         selection = "VPA";
                     }
                     dialog.show();
