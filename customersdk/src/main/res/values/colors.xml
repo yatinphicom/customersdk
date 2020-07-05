@@ -7,4 +7,6 @@
     <color name="textcolor">#939393</color>
     <color name="graydark">#817f7f</color>
     <color name="graylight">#e2e2e4</color>
+    <color name="button">#282331</color>
+    <color name="buttonReset">#3d3d29</color>
 </resources>

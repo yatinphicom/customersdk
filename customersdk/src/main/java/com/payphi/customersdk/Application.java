@@ -486,7 +486,6 @@ public class Application {
             throw new InvalidParameterException("Invalid Parameter!!");
         }
 
-
     }
     public void setMerchantName(String name,Context context){
         sharedpreferences = context.getSharedPreferences("AppSdk", Context.MODE_PRIVATE);

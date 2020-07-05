@@ -8,6 +8,33 @@
     android:background="#FFFFFF"
     android:clickable="true">
 
+    <android.support.v7.widget.Toolbar
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#282331">
+
+        <TextView
+            android:layout_width="40dp"
+            android:gravity="left"
+            android:scaleX="2"
+            android:background="@drawable/payphilogo"
+            android:layout_height="30dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:textColor="#fff"
+                android:text="ksf"
+                android:layout_marginRight="10dp"
+                android:layout_alignParentRight="true"
+                android:textStyle="bold"
+                android:id="@+id/merchantName"
+                android:gravity="right"
+                />
+
+    </android.support.v7.widget.Toolbar>
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -288,11 +315,26 @@
                     android:layout_marginTop="50dp"
                     android:layout_marginEnd="17dp"
                     android:layout_marginRight="17dp"
-                    android:background="@drawable/button_bg"
+                    android:background="#3d3d29"
                     android:text="Check Status"
                     android:textAllCaps="false"
                     android:textColor="#ffff"
                     android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/cancelText"
+                    android:layout_width="match_parent"
+                    android:layout_height="47dp"
+                    android:layout_column="12"
+                    android:layout_below="@+id/checkStatusUpiQr"
+                    android:layout_alignParentStart="true"
+                    android:layout_alignParentLeft="true"
+                    android:layout_marginStart="0dp"
+                    android:layout_marginLeft="0dp"
+                    android:layout_marginTop="20dp"
+                    android:lineSpacingExtra="6dp"
+                    android:text="In case you want to cancel the transaction, please press back"
+                    android:textAlignment="center" />
 
                 <TextView
                     android:id="@+id/msgId"
@@ -329,7 +371,7 @@
                     android:layout_marginTop="146dp"
                     android:layout_marginEnd="13dp"
                     android:layout_marginRight="13dp"
-                    android:background="@drawable/button_bg"
+                    android:background="#3d3d29"
                     android:text="Proceed to Pay"
                     android:textAllCaps="false"
                     android:textColor="#ffff"

@@ -1,8 +1,10 @@
 package com.payphi.customersdk;
 
+import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -105,7 +107,9 @@ public class QRCodeFragment extends Fragment {
     Button proeedTopay;
     private boolean flag=true;
     TextView usermsg;
+    TextView merchantName;
     Button statButton;
+    TextView cancelText;
     CountDownTimer countDownTimer;
     boolean enableflag= true;
     boolean clickedflag=true;
@@ -171,10 +175,11 @@ public class QRCodeFragment extends Fragment {
                     //   setContentView(R.layout.upi_activity);
                     view = inflater.inflate(R.layout.upi_activity, container, false);
 
+                    cancelText = (TextView) view.findViewById(R.id.cancelText);
                     amtText = (TextView) view.findViewById(R.id.amtId);
                     servicetxt =(TextView) view.findViewById(R.id.qrservicechanrgeId);
                     totalamttext =(TextView) view.findViewById(R.id.qrtotalamtId);
-
+                    merchantName = (TextView) view.findViewById(R.id.merchantName);
                     qrserviceRow = (TableRow) view.findViewById(R.id.qrserviceRowId);
                     qrtotamountRow =(TableRow) view.findViewById(R.id.qrtotamountRowId);
                     proeedTopay =  (Button) view.findViewById(R.id.proceedtoPayId);
@@ -185,14 +190,21 @@ public class QRCodeFragment extends Fragment {
                     qrtotamountRow.setVisibility(View.INVISIBLE);
                     usermsg.setVisibility(View.INVISIBLE);
                     statButton.setVisibility(View.INVISIBLE);
+                    cancelText.setVisibility(View.INVISIBLE);
                     progressBar = (ProgressBar)view.findViewById(R.id.pb);
                     progressBar.setVisibility(View.GONE);
                     time = (TextView)view.findViewById(R.id.time);
                     time.setVisibility(View.GONE);
+                    if(sharedpreferences.getString("merchantName",null)!=null){
+                        merchantName.setText(sharedpreferences.getString("merchantName",null));
+                    }else{
+                        merchantName.setText("");
+                    }
 
                 proeedTopay.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
+                    proeedTopay.setBackgroundColor(getResources().getColor(R.color.button));
                     final Dialog dialog;
                     dialog = new Dialog(getContext());
                     dialog.getWindow().setBackgroundDrawable(getResources().getDrawable(R.color.colorPrimaryDark));
@@ -203,10 +215,12 @@ public class QRCodeFragment extends Fragment {
                     final EditText input = (EditText) dialog.findViewById(R.id.vpaText);
                     input.setEnabled(false);
                     input.setVisibility(View.GONE);
+                    input.setFilters(EmojiFilter.getFilter());
                     RadioButton rb1 = (RadioButton)dialog.findViewById(R.id.cash);
                     RadioButton rb2 = (RadioButton)dialog.findViewById(R.id.card);
                     clicker = (Button) dialog.findViewById(R.id.confButton);
                     clicker.setEnabled(false);
+                        proeedTopay.setBackgroundColor(getResources().getColor(R.color.buttonReset));
                     if(appsCount() == 0){
                         txtTitle.setText("VPA Payment");
                         clicker.setEnabled(true);
@@ -616,6 +630,7 @@ public class QRCodeFragment extends Fragment {
                     time.setText(""+millisUntilFinished / 1000);
                 }else{
                     statButton.setVisibility(View.VISIBLE);
+                    cancelText.setVisibility(View.VISIBLE);
                     statButton.setEnabled(true);
                     progressBar.setVisibility(View.GONE);
                     time.setVisibility(View.GONE);
@@ -628,6 +643,7 @@ public class QRCodeFragment extends Fragment {
 
             public void onFinish() {
                 statButton.setVisibility(View.VISIBLE);
+                cancelText.setVisibility(View.VISIBLE);
                 statButton.setEnabled(true);
                 statButton.setText("Verify Payment");
                 progressBar.setVisibility(View.GONE);
@@ -642,8 +658,10 @@ public class QRCodeFragment extends Fragment {
         statButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                statButton.setBackgroundColor(getResources().getColor(R.color.button));
                 click = "user";
                 CheckStatusTransaction();
+                statButton.setBackgroundColor(getResources().getColor(R.color.buttonReset));
             }
         });
 
@@ -700,8 +718,9 @@ public class QRCodeFragment extends Fragment {
         enableflag = false;
         usermsg.setVisibility(View.VISIBLE);
         progressBar.setVisibility(View.GONE);
-        usermsg.setText("Payment confirmation not yet received. Please click on verify in case of you have approved the request.");
+        usermsg.setText("Payment confirmation not yet received. Please click on verify in case  you have approved the request.");
         statButton.setVisibility(View.VISIBLE);
+        cancelText.setVisibility(View.VISIBLE);
         statButton.setEnabled(true);
         statButton.setText("Verify Payment");
         CheckStatusTransaction();
