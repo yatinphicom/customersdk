@@ -2,9 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/CustomerSdk.iml" filepath="$PROJECT_DIR$/CustomerSdk.iml" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
-      <module fileurl="file://$PROJECT_DIR$/customersdk/customersdk.iml" filepath="$PROJECT_DIR$/customersdk/customersdk.iml" />
+      <module fileurl="file://$PROJECT_DIR$/CustomerSdk1.iml" filepath="$PROJECT_DIR$/CustomerSdk1.iml" group="CustomerSdk1" />
+      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" group="CustomerSdk1/app" />
+      <module fileurl="file://$PROJECT_DIR$/customersdk/customersdk.iml" filepath="$PROJECT_DIR$/customersdk/customersdk.iml" group="CustomerSdk1/customersdk" />
     </modules>
   </component>
 </project>

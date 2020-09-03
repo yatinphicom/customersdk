@@ -15,6 +15,7 @@ import android.os.CountDownTimer;
 import android.os.Handler;
 import android.support.v4.app.Fragment;
 import android.util.Log;
+import android.util.TimeUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -29,16 +30,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.gson.Gson;
-import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.AsyncHttpResponseHandler;
-import com.loopj.android.http.JsonHttpResponseHandler;
-import com.loopj.android.http.RequestParams;
+
 import com.payphi.customersdk.util.Message;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -46,11 +45,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 
-import cz.msebera.android.httpclient.Header;
-import cz.msebera.android.httpclient.entity.StringEntity;
-import cz.msebera.android.httpclient.message.BasicHeader;
-import cz.msebera.android.httpclient.protocol.HTTP;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.FormBody;
+import okhttp3.Headers;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 import static android.app.Activity.RESULT_CANCELED;
 import static android.app.Activity.RESULT_OK;
@@ -263,6 +268,7 @@ public class QRCodeFragment extends Fragment {
                                 }else {
                                     if(!input.getText().toString().equals("") &&  input.getText().toString().contains("@")){
                                         dialog.dismiss();
+                                        proeedTopay.setVisibility(View.GONE);
                                         vpaPayment("UPI",input.getText().toString());
                                     }else {
                                         Toast.makeText(getContext(),"Please enter valid VPA",Toast.LENGTH_LONG).show();
@@ -402,6 +408,11 @@ public class QRCodeFragment extends Fragment {
     }
 
     private void vpaPayment(String type,String vpa) {
+        final int DEFAULT_TIMEOUT = 90;
+        OkHttpClient client = new OkHttpClient.Builder()
+                .readTimeout(DEFAULT_TIMEOUT, TimeUnit.SECONDS)
+                .build();
+
         TreeMap<String, String> paramsMap = new TreeMap<String, String>();
         paramsMap.put("amount", amount);
         paramsMap.put("currency", currencyCode);
@@ -431,150 +442,149 @@ public class QRCodeFragment extends Fragment {
 
         String secureHash = Utility.prepareSecureHash(secureToken, paramsMap);
         final Context context = this.getActivity().getApplicationContext();
-        AsyncHttpClient client = new AsyncHttpClient();
+        //AsyncHttpClient client = new AsyncHttpClient();
 
 
-        final int DEFAULT_TIMEOUT = 30 * 1000;
-        client.setConnectTimeout(DEFAULT_TIMEOUT);
-        client.setMaxRetriesAndTimeout(1, DEFAULT_TIMEOUT);
-        client.setTimeout(DEFAULT_TIMEOUT);
-
-        RequestParams params = new RequestParams();
-        params.add("amount",amount);
-        params.add("currencyCode",currencyCode);
-        params.add("merchantID",merchantId);
-        params.add("merchantTxnNo",tranRefNo);
-        params.add("invoiceNo",invoiceNo);
-        params.add("allowDisablePaymentMode",type);
-        params.put("secureHash", secureHash);
-        params.add("paymentMode", type);
-        params.add("payType", "0");
+        FormBody.Builder builder = new FormBody.Builder();
+        builder.add("amount",amount);
+        builder.add("currencyCode",currencyCode);
+        builder.add("merchantID",merchantId);
+        builder.add("merchantTxnNo",tranRefNo);
+        builder.add("invoiceNo",invoiceNo);
+        builder.add("allowDisablePaymentMode",type);
+        builder.add("secureHash", secureHash);
+        builder.add("paymentMode", type);
+        builder.add("payType", "0");
         if(!vpa.equals("") &&  vpa.contains("@")){
-            params.add("customerUPIAlias", vpa);
+            builder.add("customerUPIAlias", vpa);
         }
         if(!merchantId.equals(sharedpreferences.getString("mid",null).toString())){
-            params.add("aggregatorID",sharedpreferences.getString("mid",null));
+            builder.add("aggregatorID",sharedpreferences.getString("mid",null));
         }
 
         if(customerID!=null && !customerID.equals("")){
-            params.add("customerID", customerID);
+            builder.add("customerID", customerID);
         }
-        params.add("transactionType","SALE");
-        params.add("secureTokenHash","Y");
-        params.add("customerEmailID",customerEmailID);
-        params.add("returnURL", APISettings.getApiSettings().getReturnUrl());
-
-        StringEntity stringEntity = new StringEntity(params.toString(), "UTF-8");
-        stringEntity.setContentType(new BasicHeader(HTTP.CONTENT_TYPE, "application/x-www-form-urlencoded"));
-        paydialog.show();
+        builder.add("transactionType","SALE");
+        builder.add("secureTokenHash","Y");
+        builder.add("customerEmailID",customerEmailID);
+        builder.add("returnURL", APISettings.getApiSettings().getReturnUrl());
+        RequestBody requestBody = builder
+                .build();
         String callType = "&callType=s2s";
-        proeedTopay.setVisibility(View.GONE);
-        client.post(context, APISettings.getApiSettings().getFormActionUrl()+callType, stringEntity, "application/x-www-form-urlencoded", new JsonHttpResponseHandler() {
+        Request request = new Request.Builder()
+                .url(APISettings.getApiSettings().getFormActionUrl()+callType)
+                .post(requestBody)
+                .build();
+        paydialog.show();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, final IOException e) {
+                Handler mainHandler = new Handler(getContext().getMainLooper());
+                Runnable runnable = new Runnable() {
+                    @Override
+                    public void run() {
+                        paydialog.dismiss();
+                        flag = false;
+                       // Log.d("error",e.getMessage());
+                        Intent intent = new Intent();
+                        PayPhiSdk.onPaymentResponse(0, RESULT_CANCELED, intent);
+                        getActivity().finish();
+                    }
+                };
+                mainHandler.post(runnable);
+            }
 
             @Override
-            public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
-                paydialog.dismiss();
-                //Log.d("vpa response",response.toString());
-                //System.out.println("response===..............."+response);
-                try {
-                    if (response.has("responseCode")) {
+            public void onResponse(Call call, final Response data) throws IOException {
+                Handler mainHandler = new Handler(getContext().getMainLooper());
+                Runnable runnable = new Runnable() {
+                    @Override
+                    public void run() {
+                        paydialog.dismiss();
+                        //Log.d("vpa response",response.toString());
+                        //System.out.println("response===..............."+response);
                         try {
-                            if (statusCode == 200) {
+                            ResponseBody responseBody = data.body();
+                            JSONObject response = new JSONObject(responseBody.string());
+                           // Log.d("vpa response",response.toString());
+                            int statusCode = data.code();
+                            if (response.has("responseCode")) {
                                 try {
-                                    String responseCode = response.getString("responseCode");
-                                    if (responseCode.equals("000") || responseCode.equals("0000") || responseCode.equals("R1000")) {
-                                        if (clickedflag) {
-                                            StartCounter(view);
-                                            SceduleTask();
+                                    if (statusCode == 200) {
+                                        try {
+                                            String responseCode = response.getString("responseCode");
+                                            if (responseCode.equals("000") || responseCode.equals("0000") || responseCode.equals("R1000")) {
+                                                if (clickedflag) {
+                                                    StartCounter(view);
+                                                    SceduleTask();
+                                                }
+                                                clickedflag = false;
+                                                usermsg.setVisibility(View.VISIBLE);
+                                                usermsg.setText("Payment approval request has been sent to your BHIM UPI App. Please authorize the payment from your BHIM UPI App.");
+                                                //statButton.setVisibility(View.VISIBLE);
+                                            } else {
+                                                Intent intent = new Intent();
+                                                PayPhiSdk.onPaymentResponse(0, 4, intent);
+                                                if (getActivity() != null) {
+                                                    flag = false;
+                                                    getActivity().finish();
+                                                }
+                                            }
+                                        } catch (JSONException e) {
+                                            Intent intent = new Intent();
+                                            PayPhiSdk.onPaymentResponse(0, 4, intent);
+                                            if (getActivity() != null) {
+                                                flag = false;
+                                                getActivity().finish();
+                                            }
                                         }
-                                        clickedflag = false;
-                                        usermsg.setVisibility(View.VISIBLE);
-                                        usermsg.setText("Payment approval request has been sent to your BHIM UPI App. Please authorize the payment from your BHIM UPI App.");
-                                        //statButton.setVisibility(View.VISIBLE);
                                     } else {
                                         Intent intent = new Intent();
                                         PayPhiSdk.onPaymentResponse(0, 4, intent);
                                         if (getActivity() != null) {
-                                            getActivity().finish();
                                             flag = false;
+                                            getActivity().finish();
                                         }
-                                    }
-                                } catch (JSONException e) {
-                                    Intent intent = new Intent();
-                                    PayPhiSdk.onPaymentResponse(0, 4, intent);
-                                    if (getActivity() != null) {
-                                        getActivity().finish();
-                                        flag = false;
-                                    }
-                                }
-                            } else {
-                                Intent intent = new Intent();
-
-                                PayPhiSdk.onPaymentResponse(0, 4, intent);
-                                if (getActivity() != null) {
-                                    getActivity().finish();
-                                    flag = false;
-                                }
 //
-                            }
+                                    }
 
-                        } catch (Exception e) {
-                            Toast.makeText(context, e.toString(), Toast.LENGTH_LONG).show();
+                                } catch (Exception e) {
+                                    //Toast.makeText(context, e.toString(), Toast.LENGTH_LONG).show();
+                                    paydialog.dismiss();
+                                 //   e.printStackTrace();
+                                    Intent intent = new Intent();
+                                    PayPhiSdk.onPaymentResponse(0, 2, intent);
+                                    if (getActivity() != null) {
+                                        flag = false;
+                                        getActivity().finish();
+                                    }
+                                }
+                            }else {
+                                Intent intent = new Intent();
+                                PayPhiSdk.onPaymentResponse(0, 2, intent);
+                                if (getActivity() != null) {
+                                    flag = false;
+                                    getActivity().finish();
+                                }
+                            }
+                        }catch (Exception e){
+                           // Toast.makeText(context, e.toString(), Toast.LENGTH_LONG).show();
                             paydialog.dismiss();
-                            e.printStackTrace();
+                           // e.printStackTrace();
                             Intent intent = new Intent();
                             PayPhiSdk.onPaymentResponse(0, 2, intent);
                             if (getActivity() != null) {
-                                getActivity().finish();
                                 flag = false;
+                                getActivity().finish();
                             }
                         }
-                    }else {
-                        Intent intent = new Intent();
-                        PayPhiSdk.onPaymentResponse(0, 2, intent);
-                        if (getActivity() != null) {
-                            getActivity().finish();
-                            flag = false;
-                        }
+
                     }
-                }catch (Exception e){
-                    Toast.makeText(context, e.toString(), Toast.LENGTH_LONG).show();
-                    paydialog.dismiss();
-                    e.printStackTrace();
-                    Intent intent = new Intent();
-                    PayPhiSdk.onPaymentResponse(0, 2, intent);
-                    if (getActivity() != null) {
-                        getActivity().finish();
-                        flag = false;
-                    }
-                }
-
-            }
-            @Override
-            public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
-
-                paydialog.dismiss();
-                super.onFailure(statusCode, headers, throwable, errorResponse);
-                Intent intent = new Intent();
-                // getActivity().setResult(3, intent);
-                PayPhiSdk.onPaymentResponse(0, RESULT_CANCELED, intent);
-                getActivity().finish();
-                handleHttpError(statusCode);
-            }
-
-            @Override
-            public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-
-                paydialog.dismiss();
-                super.onFailure(statusCode, headers, responseString, throwable);
-                Intent intent = new Intent();
-                // getActivity().setResult(3, intent);
-                PayPhiSdk.onPaymentResponse(0, RESULT_CANCELED, intent);
-                getActivity().finish();
-                handleHttpError(statusCode);
+                };
+                mainHandler.post(runnable);
             }
         });
-
     }
 
     private int appsCount(){
@@ -646,9 +656,10 @@ public class QRCodeFragment extends Fragment {
                 cancelText.setVisibility(View.VISIBLE);
                 statButton.setEnabled(true);
                 statButton.setText("Verify Payment");
+                proeedTopay.setVisibility(View.GONE);
                 progressBar.setVisibility(View.GONE);
                 time.setVisibility(View.GONE);
-                usermsg.setText("Payment confirmation not yet received. Please click on verify in case you have approved the request.");
+                usermsg.setText("Payment confirmation not yet received.Please click on verify in case you have approved the request.");
                // mTextField.setText("done!");
                 flag = false;
             }
@@ -712,13 +723,18 @@ public class QRCodeFragment extends Fragment {
             //No Application can handle your intent
         }
     }
+    protected void stopService(){
+        if(handler != null){
+            handler.removeCallbacksAndMessages(null);
+        }
+    }
 
     public void checkStatus(){
-        System.out.println("Inside check stauts......");
+        //System.out.println("Inside check stauts......");
         enableflag = false;
         usermsg.setVisibility(View.VISIBLE);
         progressBar.setVisibility(View.GONE);
-        usermsg.setText("Payment confirmation not yet received. Please click on verify in case  you have approved the request.");
+        usermsg.setText("Payment confirmation not yet received.Please click on verify in case  you have approved the request.");
         statButton.setVisibility(View.VISIBLE);
         cancelText.setVisibility(View.VISIBLE);
         statButton.setEnabled(true);
@@ -727,7 +743,7 @@ public class QRCodeFragment extends Fragment {
     }
 
     public void CheckStatusTransaction(){
-
+        OkHttpClient client = new OkHttpClient();
         TreeMap<String, String> paramsMap = new TreeMap<String, String>();
 
 
@@ -746,151 +762,161 @@ public class QRCodeFragment extends Fragment {
 
         try {
             Context context = this.getActivity().getApplicationContext();
-            final AsyncHttpClient client = new AsyncHttpClient();
-
-
-            final int DEFAULT_TIMEOUT = 30 * 1000;
-            client.setConnectTimeout(DEFAULT_TIMEOUT);
-            client.setMaxRetriesAndTimeout(1, DEFAULT_TIMEOUT);
-            client.setTimeout(DEFAULT_TIMEOUT);
+            FormBody.Builder builder = new FormBody.Builder();
 //            paydialog.show();
-
-            RequestParams params = new RequestParams();
-
-            params.put("amount", amount);
-            params.put("merchantTxnNo", tranRefNo);
-            params.put("transactionType", "STATUS");
-            params.put("originalTxnNo", tranRefNo);
-            params.put("paymentMode", "UPIQR");
+            
+            builder.add("amount", amount);
+            builder.add("merchantTxnNo", tranRefNo);
+            builder.add("transactionType", "STATUS");
+            builder.add("originalTxnNo", tranRefNo);
+            builder.add("paymentMode", "UPIQR");
 
             if (!merchantId.equals(sharedpreferences.getString("mid", null).toString())) {
-                params.put("merchantID", sharedpreferences.getString("mid", null));
+                builder.add("merchantID", sharedpreferences.getString("mid", null));
             }else{
-                params.put("merchantID", merchantId);
+                builder.add("merchantID", merchantId);
             }
-
-            StringEntity stringEntity = new StringEntity(params.toString(), "UTF-8");
-            stringEntity.setContentType(new BasicHeader(HTTP.CONTENT_TYPE, "application/x-www-form-urlencoded"));
+            final RequestBody requestBody = builder
+                    .build();
+            Request request = new Request.Builder()
+                    .url(APISettings.getApiSettings().getCheckPaymentStatus())
+                    .post(requestBody)
+                    .build();
             if(!flag) {
                 paydialog.show();
             }
-            //qreditor=sharedpreferences.edit();
-            //client.post(context, "", );
-            // client.post(context,APISettings.getApiSettings().getGenerateQr() ,  "application/json",new JsonHttpResponseHandler() {
-            //           client.post
-            client.post(context, APISettings.getApiSettings().getCheckPaymentStatus(), stringEntity, "application/x-www-form-urlencoded", new JsonHttpResponseHandler() {
-
-
+            client.newCall(request).enqueue(new Callback() {
                 @Override
-                public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
-                    //Log.d("json rsponse",response.toString());
+                public void onFailure(Call call, IOException e) {
                     if(!flag) {
                         paydialog.dismiss();
                     }
-                    //System.out.println("response===..............."+response);
-                    try {
-                        //JSONObject jsonObject = response.getJSONObject("resBody");
-                        String txnId ="";
-                        String responseCode = "";
-                        String merchantId=   "";
-                        String merchantTxnNo ="";
-                        String txnStatus="" ;
-                        String paymentDateTime="";
-                        String paymentID ="";
-                        String txnAuthId="";
-                        String respDescription ="";
-                        //	String txnStatus = response.getString("txnStatus");
-
-
-
-                        if(response.has("responseCode") && response.getString("responseCode")!=null) {
-                            responseCode = response.getString("responseCode");
-
+                    Handler mainHandler = new Handler(getContext().getMainLooper());
+                    Runnable runnable = new Runnable() {
+                        @Override
+                        public void run() {
+                           // Log.d("in error","status check error");
+                            Toast.makeText(getContext(),"Error in processing Transaction status ",Toast.LENGTH_LONG).show();
                         }
+                    };
+                    mainHandler.post(runnable);
+                }
 
-
-                        if(response.has("merchantTxnNo") && response.getString("merchantTxnNo")!=null) {
-                            merchantTxnNo = response.getString("merchantTxnNo");
-
-                        }
-
-                        if(response.has("merchantId") && response.getString("merchantId")!=null) {
-                            merchantId = response.getString("merchantId");
-                        }
-
-                        if(response.has("txnID") && response.getString("txnID")!=null) {
-                            txnId = response.getString("txnID");
-                        }
-
-                        if(response.has("txnAuthId") && response.getString("txnAuthId")!=null) {
-                            txnAuthId = response.getString("txnAuthID");
-                        }
-
-                        if(response.has("responseCode") && (responseCode.equals("000") || responseCode.equals("0000")) ){
-                            //Toast.makeText(context, respDescription, Toast.LENGTH_SHORT).show();
-                            if(response.has("txnStatus") && response.getString("txnStatus")!=null){
-                                txnStatus=response.getString("txnStatus");
+                @Override
+                public void onResponse(Call call, final Response data) throws IOException {
+                    Handler mainHandler = new Handler(getContext().getMainLooper());
+                    Runnable runnable = new Runnable() {
+                        @Override
+                        public void run() {
+                            if(!flag) {
+                                paydialog.dismiss();
                             }
+//                            System.out.println("response===..............."+response);
+                            try {
+                                ResponseBody responseBody = data.body();
+                                JSONObject response = new JSONObject(responseBody.string());
+                                //JSONObject jsonObject = response.getJSONObject("resBody");
+                                String txnId ="";
+                                String responseCode = "";
+                                String merchantId=   "";
+                                String merchantTxnNo ="";
+                                String txnStatus="" ;
+                                String paymentDateTime="";
+                                String paymentID ="";
+                                String txnAuthId="";
+                                String respDescription ="";
+                                //	String txnStatus = response.getString("txnStatus");
 
 
 
+                                if(response.has("responseCode") && response.getString("responseCode")!=null) {
+                                    responseCode = response.getString("responseCode");
 
-                            if(response.has("txnRespDescription")&& response.getString("txnRespDescription")!=null){
-                                respDescription = response.getString("txnRespDescription");
-                            }
-                            if(response.has("respDescription")&& response.getString("respDescription")!=null){
-                                respDescription = response.getString("respDescription");
-                            }
-
-
-                            if(response.has("paymentDateTime") && response.getString("paymentDateTime")!=null){
-
-                                paymentDateTime = response.getString("paymentDateTime");
-
-                                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                                try {
-
-
-                                    //paymentDateTime= dateFormat.format(paymentDateTime);
-                                } catch (Exception e) {
-                                    e.printStackTrace();
                                 }
 
-                            }
 
-                            //showNotification(txnStatus,respDescription);
-                        } else {
-                            //Toast.makeText(context, respDescription, Toast.LENGTH_SHORT).show();
+                                if(response.has("merchantTxnNo") && response.getString("merchantTxnNo")!=null) {
+                                    merchantTxnNo = response.getString("merchantTxnNo");
 
-                            if(response.has("txnStatus") && response.getString("txnStatus")!=null){
-                                txnStatus=response.getString("txnStatus");
-                            }
-                            //txnStatus="Fail";
-
-                            if(response.has("txnRespDescription")&& response.getString("txnRespDescription")!=null){
-                                respDescription = response.getString("txnRespDescription");
-                            }
-                            if(response.has("respDescription") && response.getString("respDescription")!=null){
-                                respDescription = response.getString("respDescription");
-                            }
-
-
-                            if(response.has("paymentDateTime") && response.getString("paymentDateTime")!=null){
-
-                                paymentDateTime = response.getString("paymentDateTime");
-
-                                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                                try {
-
-
-                                  //  paymentDateTime= dateFormat.format(paymentDateTime);
-                                } catch (Exception e) {
-                                    e.printStackTrace();
                                 }
 
-                            }
+                                if(response.has("merchantId") && response.getString("merchantId")!=null) {
+                                    merchantId = response.getString("merchantId");
+                                }
 
-                    //        msg=PayPhiSdk.onMessageRequest(10);
+                                if(response.has("txnID") && response.getString("txnID")!=null) {
+                                    txnId = response.getString("txnID");
+                                }
+
+                                if(response.has("txnAuthId") && response.getString("txnAuthId")!=null) {
+                                    txnAuthId = response.getString("txnAuthID");
+                                }
+
+                                if(response.has("responseCode") && (responseCode.equals("000") || responseCode.equals("0000")) ){
+                                    //Toast.makeText(context, respDescription, Toast.LENGTH_SHORT).show();
+                                    if(response.has("txnStatus") && response.getString("txnStatus")!=null){
+                                        txnStatus=response.getString("txnStatus");
+                                    }
+
+
+
+
+                                    if(response.has("txnRespDescription")&& response.getString("txnRespDescription")!=null){
+                                        respDescription = response.getString("txnRespDescription");
+                                    }
+                                    if(response.has("respDescription")&& response.getString("respDescription")!=null){
+                                        respDescription = response.getString("respDescription");
+                                    }
+
+
+                                    if(response.has("paymentDateTime") && response.getString("paymentDateTime")!=null){
+
+                                        paymentDateTime = response.getString("paymentDateTime");
+
+                                        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                                        try {
+
+
+                                            //paymentDateTime= dateFormat.format(paymentDateTime);
+                                        } catch (Exception e) {
+                                           // e.printStackTrace();
+                                        }
+
+                                    }
+
+                                    //showNotification(txnStatus,respDescription);
+                                } else {
+                                    //Toast.makeText(context, respDescription, Toast.LENGTH_SHORT).show();
+
+                                    if(response.has("txnStatus") && response.getString("txnStatus")!=null){
+                                        txnStatus=response.getString("txnStatus");
+                                    }
+                                    //txnStatus="Fail";
+
+                                    if(response.has("txnRespDescription")&& response.getString("txnRespDescription")!=null){
+                                        respDescription = response.getString("txnRespDescription");
+                                    }
+                                    if(response.has("respDescription") && response.getString("respDescription")!=null){
+                                        respDescription = response.getString("respDescription");
+                                    }
+
+
+                                    if(response.has("paymentDateTime") && response.getString("paymentDateTime")!=null){
+
+                                        paymentDateTime = response.getString("paymentDateTime");
+
+                                        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                                        try {
+
+
+                                            //  paymentDateTime= dateFormat.format(paymentDateTime);
+                                        } catch (Exception e) {
+                                           // e.printStackTrace();
+                                        }
+
+                                    }
+
+                                    //        msg=PayPhiSdk.onMessageRequest(10);
                             /*int errorcode = Message.VERIFYERR10.getMessage();
 
                             //map = PayPhiSdk.getMessage();
@@ -898,136 +924,112 @@ public class QRCodeFragment extends Fragment {
                                 msg = map.get(errorcode);
                             }
                             Toast.makeText(getContext(),msg,Toast.LENGTH_LONG).show();*/
-                            //showNotification(txnStatus,respDescription);
-                        }
-
-
-                            if(txnStatus.equals("SUC")){
-                                StoreTransaction(responseCode,respDescription,merchantId,merchantTxnNo,txnStatus,txnId,txnAuthId,paymentDateTime,invoiceNo,customerID);
-                                Map respMap = new HashMap();
-                                respMap =  Utility.toMap(response);
-                                Intent intent = new Intent();
-                                for ( Object key : respMap.keySet() ) {
-                                    intent.putExtra(String.valueOf(key),String.valueOf(respMap.get(key)));
-                                }
-                                countDownTimer.cancel();
-                                flag = false;
-                                intent.putExtra("respType","checkstatus");
-                                //PayPhiSdk.onPaymentResponse(0, -1, intent);
-
-
-                                if(getActivity()!=null){
-                                 //   getActivity().setResult(getActivity().RESULT_OK, intent);
-                                    PayPhiSdk.onPaymentResponse(0, RESULT_OK, intent);
-                                    getActivity().finish();
+                                    //showNotification(txnStatus,respDescription);
                                 }
 
-                              //  Utility.updateAccessToken(getContext().getSharedPreferences("AppSdk", Context.MODE_PRIVATE), headers);
-                              //  getActivity().finish();
+
+                                if(txnStatus.equals("SUC")){
+                                    StoreTransaction(responseCode,respDescription,merchantId,merchantTxnNo,txnStatus,txnId,txnAuthId,paymentDateTime,invoiceNo,customerID);
+                                    Map respMap = new HashMap();
+                                    respMap =  Utility.toMap(response);
+                                    Intent intent = new Intent();
+                                    for ( Object key : respMap.keySet() ) {
+                                        intent.putExtra(String.valueOf(key),String.valueOf(respMap.get(key)));
+                                    }
+                                    countDownTimer.cancel();
+                                    flag = false;
+                                    intent.putExtra("respType","checkstatus");
+                                    //PayPhiSdk.onPaymentResponse(0, -1, intent);
 
 
-                            }
+                                    if(getActivity()!=null){
 
-                        if(txnStatus.equals("REJ") ) {
+                                        //   getActivity().setResult(getActivity().RESULT_OK, intent);
+                                        PayPhiSdk.onPaymentResponse(0, RESULT_OK, intent);
+                                        getActivity().finish();
+                                    }
 
-                            StoreTransaction(responseCode,respDescription,merchantId,merchantTxnNo,txnStatus,txnId,txnAuthId,paymentDateTime,invoiceNo,customerID);
-                            Map respMap = new HashMap();
-                            respMap =  Utility.toMap(response);
-                            Intent intent = new Intent();
-                            for ( Object key : respMap.keySet() ) {
-
-                                intent.putExtra(String.valueOf(key),String.valueOf(respMap.get(key)));
+                                    //  Utility.updateAccessToken(getContext().getSharedPreferences("AppSdk", Context.MODE_PRIVATE), headers);
+                                    //  getActivity().finish();
 
 
-                            }
-                            intent.putExtra("respType","checkstatus");
-                            countDownTimer.cancel();
-                            flag = false;
-                            if(getActivity()!=null){
-                               // getActivity().setResult(getActivity().RESULT_OK, intent);
-                                PayPhiSdk.onPaymentResponse(0, RESULT_OK, intent);
-                                getActivity().finish();
-                            }
+                                }
 
-                        }else if(txnStatus.equals("REQ")){
-                            int errorcode = Message.VERIFYERR11.getMessage();
+                                if(txnStatus.equals("REJ") ) {
+
+                                    StoreTransaction(responseCode,respDescription,merchantId,merchantTxnNo,txnStatus,txnId,txnAuthId,paymentDateTime,invoiceNo,customerID);
+                                    Map respMap = new HashMap();
+                                    respMap =  Utility.toMap(response);
+                                    Intent intent = new Intent();
+                                    for ( Object key : respMap.keySet() ) {
+
+                                        intent.putExtra(String.valueOf(key),String.valueOf(respMap.get(key)));
+
+
+                                    }
+                                    intent.putExtra("respType","checkstatus");
+                                    countDownTimer.cancel();
+                                    flag = false;
+                                    if(getActivity()!=null){
+                                        // getActivity().setResult(getActivity().RESULT_OK, intent);
+                                        PayPhiSdk.onPaymentResponse(0, RESULT_OK, intent);
+                                        getActivity().finish();
+                                    }
+
+                                }else if(txnStatus.equals("REQ")){
+                                    int errorcode = Message.VERIFYERR11.getMessage();
 //                         //   map = PayPhiSdk.getMessage();
-                            if(!flag || click == "user"){
-                                click = "system";
-                                if(map.containsKey(errorcode)){
-                                    msg = map.get(errorcode);
-                                    Toast.makeText(getContext(),msg,Toast.LENGTH_LONG).show();
-                                }else {
-                                    Toast.makeText(getContext(),"Transaction in Request state please click verify after payment",Toast.LENGTH_LONG).show();
-                                }
-                            }
+                                    if(!flag || click == "user"){
+                                        click = "system";
+                                        if(map.containsKey(errorcode)){
+                                            msg = map.get(errorcode);
+                                            Toast.makeText(getContext(),msg,Toast.LENGTH_LONG).show();
+                                        }else {
+                                            Toast.makeText(getContext(),"Transaction in Request state please click verify after payment",Toast.LENGTH_LONG).show();
+                                        }
+                                    }
 
 //                            if(!flag){
 //                                Toast.makeText(getContext(),msg,Toast.LENGTH_LONG).show();
 //                            }
 
 
-                        }else if(txnStatus.equals("ERR")){
-                            int errorcode = Message.VERIFYERR12.getMessage();
-                            countDownTimer.cancel();
-                            flag = false;
-                           // map = PayPhiSdk.getMessage();
-                            if(map.containsKey(errorcode)){
-                                msg = map.get(errorcode);
+                                }else if(txnStatus.equals("ERR")){
+                                    int errorcode = Message.VERIFYERR12.getMessage();
+                                    countDownTimer.cancel();
+                                    flag = false;
+                                    // map = PayPhiSdk.getMessage();
+                                    if(map.containsKey(errorcode)){
+                                        msg = map.get(errorcode);
+                                    }
+
+                                    Toast.makeText(getContext(),msg,Toast.LENGTH_LONG).show();
+                                }
+                            } catch (JSONException e) {
+                                paydialog.dismiss();
+                               // e.printStackTrace();
+                                flag = false;
+                                //   Toast.makeText(getContext(),"Execption..1 ",Toast.LENGTH_LONG).show();
+                                Intent intent = new Intent();
+                                countDownTimer.cancel();
+                                //  getActivity().setResult(2, intent);
+                                PayPhiSdk.onPaymentResponse(0, 2, intent);
+                                getActivity().finish();
+                                //Toast.makeText(getContext(), "Internal error", Toast.LENGTH_LONG).show();
+                            } catch (IOException e) {
+                               // e.printStackTrace();
                             }
-
-                            Toast.makeText(getContext(),msg,Toast.LENGTH_LONG).show();
                         }
+                    };
+                    mainHandler.post(runnable);
 
-
-
-
-
-                    } catch (JSONException e) {
-                        paydialog.dismiss();
-                        e.printStackTrace();
-                     //   Toast.makeText(getContext(),"Execption..1 ",Toast.LENGTH_LONG).show();
-                        Intent intent = new Intent();
-                        countDownTimer.cancel();
-                      //  getActivity().setResult(2, intent);
-                        PayPhiSdk.onPaymentResponse(0, 2, intent);
-                        getActivity().finish();
-                        //Toast.makeText(getContext(), "Internal error", Toast.LENGTH_LONG).show();
-                    }
-                }
-
-                @Override
-                public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
-                    paydialog.dismiss();
-                    super.onFailure(statusCode, headers, throwable, errorResponse);
-
-                    Toast.makeText(getContext(),"Error in processing Transaction status ",Toast.LENGTH_LONG).show();
-//                    Intent intent = new Intent();
-//                   // getActivity().setResult(3, intent);
-//                    PayPhiSdk.onPaymentResponse(0, 3, intent);
-//                    getActivity().finish();
-//                    handleHttpError(statusCode);
-                }
-
-                @Override
-                public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-                    paydialog.dismiss();
-                    super.onFailure(statusCode, headers, responseString, throwable);
-                    Toast.makeText(getContext(),"Error in processing Transaction status ",Toast.LENGTH_LONG).show();
-//                    Intent intent = new Intent();
-//                   // getActivity().setResult(3, intent);
-//                    PayPhiSdk.onPaymentResponse(0, 3, intent);
-//                    getActivity().finish();
-//                    handleHttpError(statusCode);
                 }
             });
-
         } catch (Exception e) {
+
 //            Toast.makeText(getContext(),"Execption..4 ",Toast.LENGTH_LONG).show();
-            e.printStackTrace();
+           // e.printStackTrace();
         }
-
-
 //end call
     }
 
@@ -1114,6 +1116,7 @@ public class QRCodeFragment extends Fragment {
 
 
     private String getUpiString (String type){
+        OkHttpClient client = new OkHttpClient();
         qrType = type;
         //Toast.makeText(getContext(),"In PaymentOptions",Toast.LENGTH_SHORT).show();
         TreeMap<String, String> paramsMap = new TreeMap<String, String>();
@@ -1157,8 +1160,8 @@ public class QRCodeFragment extends Fragment {
             paramsMap.put("customerID", customerID);
         }
 
-        System.out.println("paramsMap===" + paramsMap);
-        System.out.println("secureToken===" + secureToken);
+       // System.out.println("paramsMap===" + paramsMap);
+        //System.out.println("secureToken===" + secureToken);
 
         String secureHash = Utility.prepareSecureHash(secureToken, paramsMap);
 //            paramsMap.put("secureHash", secureHash);
@@ -1170,219 +1173,196 @@ public class QRCodeFragment extends Fragment {
             }*/
         try {
             Context context = getActivity().getApplicationContext();
-            AsyncHttpClient client = new AsyncHttpClient();
-
-
-            final int DEFAULT_TIMEOUT = 30 * 1000;
-            client.setConnectTimeout(DEFAULT_TIMEOUT);
-            client.setMaxRetriesAndTimeout(1, DEFAULT_TIMEOUT);
-            client.setTimeout(DEFAULT_TIMEOUT);
+            
 //            paydialog.show();
 
-            RequestParams params = new RequestParams();
-            params.put("merchantID", merchantId);
-            params.put("amount", amount);
-            params.put("currency", currencyCode);
-            params.put("merchantRefNo", tranRefNo);
-            params.put("emailID", customerEmailID);
-            params.put("secureHash", secureHash);
+            FormBody.Builder builder = new FormBody.Builder();
+            builder.add("merchantID", merchantId);
+            builder.add("amount", amount);
+            builder.add("currency", currencyCode);
+            builder.add("merchantRefNo", tranRefNo);
+            builder.add("emailID", customerEmailID);
+            builder.add("secureHash", secureHash);
             if (type.equals("U")) {
-                params.put("requestType", "UPIQR");
+                builder.add("requestType", "UPIQR");
             } else {
-                params.put("requestType", "BharatQR");
+                builder.add("requestType", "BharatQR");
             }
 
-            params.put("secureTokenHash", "Y");
+            builder.add("secureTokenHash", "Y");
 
             if (invoiceNo != null && !invoiceNo.equals("")) {
-                params.put("invoiceNo", invoiceNo);
+                builder.add("invoiceNo", invoiceNo);
             }
             if (mobileNo!= null && !mobileNo.equals("")) {
-                params.put("mobileNo", mobileNo);
+                builder.add("mobileNo", mobileNo);
             }
             if (!merchantId.equals(sharedpreferences.getString("mid", null).toString())) {
-                params.put("aggregatorID", sharedpreferences.getString("mid", null));
+                builder.add("aggregatorID", sharedpreferences.getString("mid", null));
             }
 
             if (addlParam1 != null && !addlParam1.equals("")) {
-                params.put("addlParam1", addlParam1);
+                builder.add("addlParam1", addlParam1);
             }
             if (addlParam2 != null && !addlParam2.equals("")) {
-                params.put("addlParam2", addlParam2);
+                builder.add("addlParam2", addlParam2);
             }
 
             if (invoiceList != null && !invoiceList.equals("")) {
-                params.put("invoiceList", invoiceList);
+                builder.add("invoiceList", invoiceList);
             }
 
             if (customerID != null && !customerID.equals("")) {
-                params.put("customerID", customerID);
+                builder.add("customerID", customerID);
             }
             //client.addHeader("deviceID", "AND:" + deviceID);
-
-
-            StringEntity stringEntity = new StringEntity(params.toString(), "UTF-8");
-            stringEntity.setContentType(new BasicHeader(HTTP.CONTENT_TYPE, "application/x-www-form-urlencoded"));
             paydialog.show();
+            RequestBody requestBody = builder
+                    .build();
+            Request request = new Request.Builder()
+                    .url(APISettings.getApiSettings().getGenerateQr())
+                    .post(requestBody)
+                    .build();
 
-           // qreditor = sharedpreferences.edit();
-            //client.post(context, "", );
-            // client.post(context,APISettings.getApiSettings().getGenerateQr() ,  "application/json",new JsonHttpResponseHandler() {
-            //           client.post
-
-            System.out.println("Qr Url=====" + APISettings.getApiSettings().getGenerateQr());
-            client.post(context, APISettings.getApiSettings().getGenerateQr(), stringEntity, "application/x-www-form-urlencoded", new JsonHttpResponseHandler() {
-
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    Handler mainHandler = new Handler(getContext().getMainLooper());
+                    Runnable runnable = new Runnable() {
+                        @Override
+                        public void run() {
+                            Intent intent = new Intent();
+                            PayPhiSdk.onPaymentResponse(0, 1, intent);
+                            if(getActivity()!=null){
+                                getActivity().finish();
+                                flag=false;
+                            }
+                            Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
+                        }
+                    };
+                    mainHandler.post(runnable);
+                }
 
                 @Override
-                public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
-
-                    //System.out.println("response===..............."+response);
-                    try {
-                        paydialog.dismiss();
-                        int status = response.getJSONObject("respHeader").getInt("returnCode");
-                        // Toast.makeText(getContext(),"status="+status, Toast.LENGTH_LONG).show();
-                        if (status == 200) {
-                            proeedTopay.setVisibility(View.GONE);
-                            JSONObject jsonObject = response.getJSONObject("respBody");
-                            if (jsonObject.has("upiQR")) {
-                                Gson gson = new Gson();
-                                String json = gson.toJson(jsonObject);
+                public void onResponse(Call call, final Response data) throws IOException {
+                    Handler mainHandler = new Handler(getContext().getMainLooper());
+                    Runnable runnable = new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                paydialog.dismiss();
+                                ResponseBody responseBody = data.body();
+                                JSONObject response = new JSONObject(responseBody.string());
+                                int status = response.getJSONObject("respHeader").getInt("returnCode");
+                                // Toast.makeText(getContext(),"status="+status, Toast.LENGTH_LONG).show();
+                                if (status == 200) {
+                                    proeedTopay.setVisibility(View.GONE);
+                                    JSONObject jsonObject = response.getJSONObject("respBody");
+                                    if (jsonObject.has("upiQR")) {
+                                        Gson gson = new Gson();
+                                        String json = gson.toJson(jsonObject);
 //                                qreditor.putString(tranRefNo, json);
 //                                qreditor.putString("Qr_" + tranRefNo, amount);
 //                                qreditor.commit();
-                            }
+                                    }
 
-                            if (qrType.equals("U")) {
-                                qrstring = jsonObject.getString("upiQR");
-                                System.out.println("upiQR===" + qrstring.toString());
-                                OpenAvailableIntents();
-                                if(clickedflag){
-                                     StartCounter(view);
-                                     SceduleTask();
-                                 }
-                                clickedflag =false;
-                                usermsg.setVisibility(View.VISIBLE);
-                                usermsg.setText("Waiting for payment confirmation.\n Please authorize the payment from your BHIM UPI App.");
-                                //statButton.setVisibility(View.VISIBLE);
+                                    if (qrType.equals("U")) {
+                                        qrstring = jsonObject.getString("upiQR");
+                                       // System.out.println("upiQR===" + qrstring.toString());
+                                        OpenAvailableIntents();
+                                        if(clickedflag){
+                                            StartCounter(view);
+                                            SceduleTask();
+                                        }
+                                        clickedflag =false;
+                                        usermsg.setVisibility(View.VISIBLE);
+                                        usermsg.setText("Waiting for payment confirmation.\n Please authorize the payment from your BHIM UPI App.");
+                                        //statButton.setVisibility(View.VISIBLE);
 //                                if (jsonObject.has("serviceChargeUPI") && !jsonObject.getString("serviceChargeUPI").equals("0")) {
 //                                    serviceCharge = jsonObject.get("serviceChargeUPI").toString();
 //
 //                                }
 
-                                //simulated
-                                //  AttachFragment();
-                                if (!qrstring.equals("") && !qrstring.equals("null")) {
-                                    //bahratqrString = jsonObject.get("bharatQR").toString();
-                                    //           genrateFuncionIntent(qrString);
-                                    //AttachFragment();
+                                        //simulated
+                                        //  AttachFragment();
+                                        if (!qrstring.equals("") && !qrstring.equals("null")) {
+                                            //bahratqrString = jsonObject.get("bharatQR").toString();
+                                            //           genrateFuncionIntent(qrString);
+                                            //AttachFragment();
 
-                                } else {
-                                    if (qrstring != null && !qrstring.equals("") && !qrstring.equals("null")) {
-                                        //  genrateFuncionIntent(qrString);
-                                       // AttachFragment();
-                                    } else {
-                                        //Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
-                                       // ProceedForUpiWeb("upi");
-                                        //  Intent intent = new Intent();
-                                        // PayPhiSdk.onPaymentResponse(0, 2, intent);
+                                        } else {
+                                            if (qrstring != null && !qrstring.equals("") && !qrstring.equals("null")) {
+                                                //  genrateFuncionIntent(qrString);
+                                                // AttachFragment();
+                                            } else {
+                                                //Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
+                                                // ProceedForUpiWeb("upi");
+                                                //  Intent intent = new Intent();
+                                                // PayPhiSdk.onPaymentResponse(0, 2, intent);
+                                            }
+                                        }
+
                                     }
-                                }
-
-                            }
-                            //Utility.updateAccessToken(getContext().getSharedPreferences("AppSdk", Context.MODE_PRIVATE), headers);
-                        } else if (status == 101) {
-                            paydialog.dismiss();
-                            // Utility.updateAccessToken(getContext().getSharedPreferences("AppSdk", Context.MODE_PRIVATE), headers);
-                            // sessionError();
-                            Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
+                                    //Utility.updateAccessToken(getContext().getSharedPreferences("AppSdk", Context.MODE_PRIVATE), headers);
+                                } else if (status == 101) {
+                                    paydialog.dismiss();
+                                    // Utility.updateAccessToken(getContext().getSharedPreferences("AppSdk", Context.MODE_PRIVATE), headers);
+                                    // sessionError();
+                                    Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
                                 /*Intent intent = new Intent();
                                 PayPhiSdk.onPaymentResponse(0, 2, intent);*/
 
-                        } else if (status == 201) {
-                            paydialog.dismiss();
-                            //Utility.updateAccessToken(getContext().getSharedPreferences("AppSdk", Context.MODE_PRIVATE), headers);
-                            // sessionError();
-                            Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
+                                } else if (status == 201) {
+                                    paydialog.dismiss();
+                                    //Utility.updateAccessToken(getContext().getSharedPreferences("AppSdk", Context.MODE_PRIVATE), headers);
+                                    // sessionError();
+                                    Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
                                /* Intent intent = new Intent();
                                 PayPhiSdk.onPaymentResponse(0, 2, intent);*/
-                            //Simulated
-                            // AttachFragment();
+                                    //Simulated
+                                    // AttachFragment();
 
-                        } else {
-                            paydialog.dismiss();
-                            //Utility.updateAccessToken(getContext().getSharedPreferences("AppSdk", Context.MODE_PRIVATE), headers);
-                            // sessionError();
-                            Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
+                                } else {
+                                    paydialog.dismiss();
+                                    //Utility.updateAccessToken(getContext().getSharedPreferences("AppSdk", Context.MODE_PRIVATE), headers);
+                                    // sessionError();
+                                    Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
                                 /*Intent intent = new Intent();
                                 PayPhiSdk.onPaymentResponse(0, 2, intent);*/
-                            //Simulated
-                            //AttachFragment();
-                        }
+                                    //Simulated
+                                    //AttachFragment();
+                                }
 
-                    } catch (JSONException e) {
-                        paydialog.dismiss();
-                        e.printStackTrace();
+                            } catch (JSONException e) {
+                                paydialog.dismiss();
+                               // e.printStackTrace();
                             /*Intent intent = new Intent();
                             PayPhiSdk.onPaymentResponse(0, 2, intent);*/
-                        Intent intent = new Intent();
-                        PayPhiSdk.onPaymentResponse(0, 2, intent);
-                        if(getActivity()!=null){
-                            getActivity().finish();
-                            flag=false;
+                                Intent intent = new Intent();
+                                PayPhiSdk.onPaymentResponse(0, 2, intent);
+                                if(getActivity()!=null){
+                                    getActivity().finish();
+                                    flag=false;
+                                }
+                                Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
+                                //Simulated
+                                //AttachFragment();
+                            } catch (IOException e1) {
+                               // e1.printStackTrace();
+                            }
                         }
-                        Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
-                        //Simulated
-                        //AttachFragment();
-                    }
-                }
-
-                @Override
-                public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
-                    paydialog.dismiss();
-                    super.onFailure(statusCode, headers, throwable, errorResponse);
-                  /*  if (listener != null) {
-                        listener.onFailure(String.valueOf("504")); // <---- fire listener here
-                    }*/
-                    Intent intent = new Intent();
-                    PayPhiSdk.onPaymentResponse(0, 1, intent);
-                    if(getActivity()!=null){
-                        getActivity().finish();
-                        flag=false;
-                    }
-                    Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
-                   /*     Intent intent = new Intent();
-                        PayPhiSdk.onPaymentResponse(0, 3, intent);*/
-                    handleHttpError(statusCode);
-                }
-
-                @Override
-                public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-                    paydialog.dismiss();
-                    super.onFailure(statusCode, headers, responseString, throwable);
-                   /* if (listener != null) {
-                        listener.onFailure(String.valueOf("504")); // <---- fire listener here
-                    }*/
-                    Intent intent = new Intent();
-                    PayPhiSdk.onPaymentResponse(0, 1, intent);
-                    if(getActivity()!=null){
-                        getActivity().finish();
-                        flag=false;
-                    }
-                    Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
-                        /*Intent intent = new Intent();
-                        PayPhiSdk.onPaymentResponse(0, 3, intent);*/
-                    handleHttpError(statusCode);
+                    };
+                    mainHandler.post(runnable);
                 }
             });
-
         } catch (Exception e) {
-            e.printStackTrace();
+          //  e.printStackTrace();
         }
         return null;
     }
 
     private void GetSerCharge() {
+        OkHttpClient client = new OkHttpClient();
        /* String amount = amt.getText().toString();
         amount = amount.replace("Rs. ","");
         amount = amount.trim();*/
@@ -1409,172 +1389,154 @@ public class QRCodeFragment extends Fragment {
 
         try {
             Context context = this.getActivity().getApplicationContext();
-            AsyncHttpClient client = new AsyncHttpClient();
-
-
-            final int DEFAULT_TIMEOUT = 30 * 1000;
-            client.setConnectTimeout(DEFAULT_TIMEOUT);
-            client.setMaxRetriesAndTimeout(1, DEFAULT_TIMEOUT);
-            client.setTimeout(DEFAULT_TIMEOUT);
+          
 //            paydialog.show();
-
-            RequestParams params = new RequestParams();
-            params.put("merchantID", merchantId);
-            params.put("amount", amount);
-            params.put("merchantTxnNo", tranRefNo);
-            params.put("paymentMode", "UPI");
-            params.put("paymentOptionCodes", "");
-            params.put("secureTokenHash", "Y");
-            params.put("currencyCode",currencyCode);
-            params.put("secureHash", secureHash);
+            FormBody.Builder builder = new FormBody.Builder();
+            builder.add("merchantID", merchantId);
+            builder.add("amount", amount);
+            builder.add("merchantTxnNo", tranRefNo);
+            builder.add("paymentMode", "UPI");
+            builder.add("paymentOptionCodes", "");
+            builder.add("secureTokenHash", "Y");
+            builder.add("currencyCode",currencyCode);
+            builder.add("secureHash", secureHash);
             if(sharedpreferences.getBoolean("useAggregatorMID", false)){
-                params.put("addlParam1", addlParam1);
+                builder.add("addlParam1", addlParam1);
             }
             if (invoiceList != null || !invoiceList.equals("")) {
-                params.put("invoiceList",invoiceList);
+                builder.add("invoiceList",invoiceList);
             }
             if (merchantId == null || (!merchantId.equals(sharedpreferences.getString("mid", null).toString()))) {
-                params.put("aggregatorID", sharedpreferences.getString("mid", null));
+                builder.add("aggregatorID", sharedpreferences.getString("mid", null));
             }
-
-            if(requestFrom!=null && requestFrom.equals("collectionApp") ){
-
-                client.addHeader("token", sharedpreferences.getString("jwtTokenNew", null));
-                client.addHeader("userID", sharedpreferences.getString("sdkuserId", null));
-                client.addHeader("merchantID", merchantId);
-                client.addHeader("versionID", "2.0");
-
-
-            }
-
-
-            StringEntity stringEntity = new StringEntity(params.toString(), "UTF-8");
-           // Log.d("params",params.toString());
-            stringEntity.setContentType(new BasicHeader(HTTP.CONTENT_TYPE, "application/x-www-form-urlencoded"));
             if(getActivity()!=null) {
                 paydialog.show();
             }
-            //qreditor=sharedpreferences.edit();
-            //client.post(context, "", );
-            // client.post(context,APISettings.getApiSettings().getGenerateQr() ,  "application/json",new JsonHttpResponseHandler() {
-            //           client.post
+            RequestBody requestBody = builder
+                    .build();
+            Headers.Builder hbuilder = new Headers.Builder();
+            if (requestFrom != null && requestFrom.equals("collectionApp")) {
 
+                hbuilder.add("token", sharedpreferences.getString("jwtTokenNew", null));
+                hbuilder.add("userID", sharedpreferences.getString("sdkuserId", null));
+                hbuilder.add("merchantID", merchantId);
+                hbuilder.add("versionID", "2.0");
 
+            }
+            Headers header = hbuilder.build();
+            final Request request = new Request.Builder()
+                    .url(APISettings.getApiSettings().getGetSerCharges())
+                    .headers(header)
+                    .post(requestBody)
+                    .build();
 
-            client.post(context, APISettings.getApiSettings().getGetSerCharges(), stringEntity, "application/x-www-form-urlencoded", new JsonHttpResponseHandler() {
-
-
+            client.newCall(request).enqueue(new Callback() {
                 @Override
-                public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
-                   // Log.d("service charge",response.toString());
+                public void onFailure(Call call, IOException e) {
                     if(getActivity()!=null) {
                         paydialog.dismiss();
                     }
-                    //System.out.println("response===..............."+response);
-                    try {
-
-                        //System.out.println("response come from bank api-");
-                        int responseStatus = response.getJSONObject("respHeader").getInt("responseCode");
-                        //System.out.println("responseCode : " + responseStatus);
-                        if (responseStatus == 200) {
-                            proeedTopay.setVisibility(View.VISIBLE);
-                            serchargeResponse = response.getJSONObject("respBody");
-                            if(serchargeResponse.has("serviceCharge")){
-
-                                if(Float.parseFloat(serchargeResponse.getString("serviceCharge"))!=0){
-                                        /*String amount = amt.getText().toString();
-                                        amount = amount.replace("Rs. ","");
-                                        amount = amount.trim();*/
-
-
-                                    serviceChargeAmt = serchargeResponse.getString("serviceCharge");
-
-
-                                    Float tot = Float.parseFloat(amount)+Float.parseFloat(serviceChargeAmt);
-
-                                    DecimalFormat df = new DecimalFormat();
-                                    df.setMinimumFractionDigits(2);
-                                    df.format(tot);
-                                    String formattot = String.format("%.2f", tot);
-
-
-                                    System.out.println("amnt"+amount);
-                                    System.out.println("serviceChargeAmt"+serviceChargeAmt);
-                                    System.out.println("Totoal"+tot);
-
-
-                                    servicetxt.setText(serviceChargeAmt);
-                                    totalamttext.setText(formattot);
-                                    qrserviceRow.setVisibility(View.VISIBLE);
-                                    qrtotamountRow.setVisibility(View.VISIBLE);
-                                }
-                            }
-                        }else{
-                            if(getActivity()!=null) {
-                                paydialog.dismiss();
-                            }
+                    Handler mainHandler = new Handler(getContext().getMainLooper());
+                    Runnable runnable = new Runnable() {
+                        @Override
+                        public void run() {
                             Intent intent = new Intent();
-                            PayPhiSdk.onPaymentResponse(0, 4, intent);
+                            PayPhiSdk.onPaymentResponse(0, 3, intent);
                             if(getActivity()!=null){
                                 getActivity().finish();
                                 flag=false;
                             }
                         }
-
-
-                    } catch (JSONException e) {
-                        if(getActivity()!=null) {
-                            paydialog.dismiss();
-                        }
-                        e.printStackTrace();
-                        //   Toast.makeText(getContext(),"Execption..1 ",Toast.LENGTH_LONG).show();
-                        Intent intent = new Intent();
-                        PayPhiSdk.onPaymentResponse(0, 2, intent);
-                        if(getActivity()!=null){
-                            getActivity().finish();
-                            flag=false;
-                        }
-                        //Toast.makeText(getContext(), "Internal error", Toast.LENGTH_LONG).show();
-                    }
+                    };
+                    mainHandler.post(runnable);
                 }
 
                 @Override
-                public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
-                    if(getActivity()!=null) {
-                        paydialog.dismiss();
-                    }
-                    super.onFailure(statusCode, headers, throwable, errorResponse);
+                public void onResponse(Call call, final Response data) throws IOException {
+                    Handler mainHandler = new Handler(getContext().getMainLooper());
+                    Runnable runnable = new Runnable() {
+                        @Override
+                        public void run() {
+                            if(getActivity()!=null) {
+                                paydialog.dismiss();
+                            }
+                            //System.out.println("response===..............."+response);
+                            try {
+                                ResponseBody responseBody = data.body();
+                                JSONObject response = new JSONObject(responseBody.string());
+                                //System.out.println("response come from bank api-");
+                                int responseStatus = response.getJSONObject("respHeader").getInt("responseCode");
+                                //System.out.println("responseCode : " + responseStatus);
+                                if (responseStatus == 200) {
+                                    proeedTopay.setVisibility(View.VISIBLE);
+                                    serchargeResponse = response.getJSONObject("respBody");
 
-                    // Toast.makeText(getContext(),"Execption..2 ",Toast.LENGTH_LONG).show();
-                    Intent intent = new Intent();
-                    PayPhiSdk.onPaymentResponse(0, 3, intent);
-                    handleHttpError(statusCode);
-                    if(getActivity()!=null){
-                        getActivity().finish();
-                        flag=false;
-                    }
 
-                }
+                                    if(serchargeResponse.has("serviceCharge")){
 
-                @Override
-                public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-                    if(getActivity()!=null) {
-                        paydialog.dismiss();
-                    }
-                    super.onFailure(statusCode, headers, responseString, throwable);
-                    //   Toast.makeText(getContext(),"Execption.. 3",Toast.LENGTH_LONG).show();
-                    Intent intent = new Intent();
-                    PayPhiSdk.onPaymentResponse(0, 3, intent);
-                    handleHttpError(statusCode);
-                    if(getActivity()!=null){
-                        getActivity().finish();
-                        flag=false;
-                    }
+                                        if(Float.parseFloat(serchargeResponse.getString("serviceCharge"))!=0){
+                                        /*String amount = amt.getText().toString();
+                                        amount = amount.replace("Rs. ","");
+                                        amount = amount.trim();*/
+
+
+                                            serviceChargeAmt = serchargeResponse.getString("serviceCharge");
+
+
+                                            Float tot = Float.parseFloat(amount)+Float.parseFloat(serviceChargeAmt);
+
+                                            DecimalFormat df = new DecimalFormat();
+                                            df.setMinimumFractionDigits(2);
+                                            df.format(tot);
+                                            String formattot = String.format("%.2f", tot);
+
+
+                                         //   System.out.println("amnt"+amount);
+                                           // System.out.println("serviceChargeAmt"+serviceChargeAmt);
+                                            //System.out.println("Totoal"+tot);
+
+
+                                            servicetxt.setText(serviceChargeAmt);
+                                            totalamttext.setText(formattot);
+                                            qrserviceRow.setVisibility(View.VISIBLE);
+                                            qrtotamountRow.setVisibility(View.VISIBLE);
+                                        }
+                                    }
+                                }else{
+                                    if(getActivity()!=null) {
+                                        paydialog.dismiss();
+                                    }
+                                    Intent intent = new Intent();
+                                    PayPhiSdk.onPaymentResponse(0, 4, intent);
+                                    if(getActivity()!=null){
+                                        getActivity().finish();
+                                        flag=false;
+                                    }
+                                }
+
+                            } catch (JSONException e) {
+                                if(getActivity()!=null) {
+                                    paydialog.dismiss();
+                                }
+                              //  e.printStackTrace();
+                                //   Toast.makeText(getContext(),"Execption..1 ",Toast.LENGTH_LONG).show();
+                                Intent intent = new Intent();
+                                PayPhiSdk.onPaymentResponse(0, 2, intent);
+                                if(getActivity()!=null){
+                                    getActivity().finish();
+                                    flag=false;
+                                }
+                                //Toast.makeText(getContext(), "Internal error", Toast.LENGTH_LONG).show();
+                            } catch (IOException e) {
+                               // e.printStackTrace();
+                            }
+                        }
+                    };
+                    mainHandler.post(runnable);
                 }
             });
-
         }catch (Exception e){
-            e.printStackTrace();
+          //  e.printStackTrace();
             Intent intent = new Intent();
             PayPhiSdk.onPaymentResponse(0, 2, intent);
             if(getActivity()!=null){

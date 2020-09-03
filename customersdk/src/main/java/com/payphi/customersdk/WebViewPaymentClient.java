@@ -9,8 +9,11 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.support.annotation.RequiresApi;
 import android.util.Base64;
+import android.util.Log;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -28,6 +31,7 @@ public class WebViewPaymentClient extends Activity {
 
     final Activity activity = this;
     String formUrl;
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
@@ -35,12 +39,14 @@ public class WebViewPaymentClient extends Activity {
 
         if(getIntent().getSerializableExtra("formurl") != null) {
             formUrl= getIntent().getSerializableExtra("formurl").toString();
+            //Log.d("formUrl",formUrl);
             //Toast.makeText(this,"Web view url=="+formUrl,Toast.LENGTH_LONG).show();
         }
 
 
         WebView webView = (WebView) this.findViewById(R.id.paywebviewId);
         webView.getSettings().setJavaScriptEnabled(true);
+       // webView.setWebContentsDebuggingEnabled(true);
         webView.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
         webView.getSettings().setLoadsImagesAutomatically(true);
 
@@ -89,28 +95,30 @@ public class WebViewPaymentClient extends Activity {
                public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
                    // Handle the error
                    //Toast.makeText(getApplicationContext(), "Your Internet Connection May not be active Or " + errorCode , Toast.LENGTH_LONG).show();
-                   System.out.println("Error in loading=="+description);
+                  // System.out.println("Error in loading=="+description);
                    if(failingUrl.startsWith("upi://")){
                        HandleIntentCall(failingUrl);
                    }else {
                        Intent intent = new Intent();
                        intent.putExtra("ResultType", "web");
-                       setResult(3, intent);
+                       PayPhiSdk.onPaymentResponse(0,3,intent);
+                       //setResult(3, intent);
                        finish();
                    }
                }
 
                @Override
                public void onPageFinished(WebView view, String url) {
-                   // System.out.println("Return url==" + url);
-                   Intent intent = getIntent();
+
+                   Intent intent = new Intent();
                    Uri uri = Uri.parse(url);
 
                    if (url.startsWith(APISettings.getApiSettings().getReturnUrl())) {
                        int noOfParams = uri.getQueryParameterNames().size();
                        if (noOfParams <= 2) {
                            intent.putExtra("ResultType","web");
-                           setResult(3, intent);
+                           //setResult(3, intent);
+                           PayPhiSdk.onPaymentResponse(0,3,intent);
                            finish();
                            return;
                        }
@@ -118,8 +126,12 @@ public class WebViewPaymentClient extends Activity {
                        for (String paramName : uri.getQueryParameterNames()) {
                            intent.putExtra(paramName, uri.getQueryParameter(paramName));
                        }
+                       //Toast.makeText(getBaseContext(),"Web View Finished",Toast.LENGTH_LONG).show();
+                       //System.out.println("Return url==" + url);
+                       //Log.d("onWebViewFinished","------");
                        intent.putExtra("ResultType","web");
-                       setResult(Activity.RESULT_OK, intent);
+                       PayPhiSdk.onPaymentResponse(0,RESULT_OK,intent);
+                       //setResult(Activity.RESULT_OK, intent);
                        finish();
                    }
                }
@@ -143,6 +155,7 @@ public class WebViewPaymentClient extends Activity {
            String base64version = Base64.encodeToString(formUrl.getBytes(), Base64.DEFAULT);
            webView.loadData(base64version, "text/html; charset=UTF-8", "base64");
           // formUrl ="<html><body><b>hello</b></body></html>";
+
           // webView.loadDataWithBaseURL(null, formUrl, "text/html", "UTF-8",null);
            //webView.loadUrl("https://www.google.com");
        }catch (Exception e){
@@ -177,7 +190,8 @@ public class WebViewPaymentClient extends Activity {
                     case DialogInterface.BUTTON_POSITIVE:
                         Intent intent = new Intent();
                         intent.putExtra("ResultType","web");
-                        setResult(RESULT_CANCELED,intent);
+                        PayPhiSdk.onPaymentResponse(0,RESULT_CANCELED,intent);
+                        //setResult(RESULT_CANCELED,intent);
                         finish();
 
                         break;

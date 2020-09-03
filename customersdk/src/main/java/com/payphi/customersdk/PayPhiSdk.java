@@ -4,7 +4,8 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-
+import android.util.Log;
+import android.widget.Toast;
 
 
 import org.json.JSONArray;
@@ -71,12 +72,12 @@ import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
     }
     public static android.support.v4.app.Fragment makePayment(Context context, Intent intent, String display,final IAppPaymentResponseListener listener) throws InvalidParameterException {
         paymentlistener = listener;
-
-
+        Toast.makeText(context,"make payment called",Toast.LENGTH_LONG).show();
+        Log.d("In make payment","-------");
         switch (display) {
             case DIALOG:
                 Activity con = new Activity();
-                System.out.print("In Dialog...");
+               // System.out.print("In Dialog...");
                 //Intent intent = new Intent(context, PaymentOptions.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 // con.setIntent(intent);
                 context.startActivity(intent.setFlags(FLAG_ACTIVITY_NEW_TASK));

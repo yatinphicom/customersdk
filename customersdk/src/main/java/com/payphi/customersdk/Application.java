@@ -5,16 +5,17 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
+import android.os.Handler;
 import android.util.Log;
 
 import com.google.gson.Gson;
-import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.JsonHttpResponseHandler;
+
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.security.InvalidParameterException;
 import java.security.MessageDigest;
@@ -24,10 +25,14 @@ import java.security.cert.X509Certificate;
 import java.util.Date;
 import java.util.HashMap;
 
-import cz.msebera.android.httpclient.Header;
-import cz.msebera.android.httpclient.entity.ByteArrayEntity;
-import cz.msebera.android.httpclient.message.BasicHeader;
-import cz.msebera.android.httpclient.protocol.HTTP;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Headers;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 /**
  * Created by jayesh on 22-05-2017.
@@ -97,15 +102,14 @@ public class Application {
             userId = getSdkUserId(context);
             getPaymentOptions(mid, context);
         } else {
-
-
             this.listener = listener;
+            final Handler mainHandler = new Handler(context.getMainLooper());
             userId = getSdkUserId(context);
             JSONObject jsonObjectHeader = new JSONObject();
             JSONObject jsonObjectBody = new JSONObject();
             JSONObject jsonP = new JSONObject();
             JSONObject jsonReq = new JSONObject();
-            ByteArrayEntity entity;
+
             try {
                 jsonObjectHeader.put("userID", userId);
                 jsonObjectHeader.put("parentMID", mid);
@@ -118,93 +122,98 @@ public class Application {
 
                 jsonReq.put("requestData", jsonP);
 
-                entity = new ByteArrayEntity(jsonReq.toString().getBytes("UTF-8"));
-                entity.setContentType(new BasicHeader(HTTP.CONTENT_TYPE, "application/json"));
-
-                AsyncHttpClient client = new AsyncHttpClient();
-                client.setConnectTimeout(12000);
-                client.setMaxRetriesAndTimeout(1, 12000);
-                // Toast.makeText(context,"In login....", Toast.LENGTH_LONG).show();
-                client.post(context, APISettings.getApiSettings().getLoginUrl(), entity, "application/json", new JsonHttpResponseHandler() {
+                final MediaType JSON
+                        = MediaType.parse("application/json; charset=utf-8");
+                OkHttpClient client = new OkHttpClient();
+                RequestBody body = RequestBody.create(JSON, jsonReq.toString());
+                final Request request = new Request.Builder()
+                        .url(APISettings.getApiSettings().getLoginUrl())
+                        .post(body)
+                        .build();
+                client.newCall(request).enqueue(new Callback() {
+                    @Override
+                    public void onFailure(Call call, IOException e) {
+                        handleHttpError(504, context, "login");
+                    }
 
                     @Override
-                    public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
-                        sharedpreferences = context.getSharedPreferences("AppSdk", Context.MODE_PRIVATE);
-                        editor = sharedpreferences.edit();
-                        try {
-                            //dialog.dismiss();
-                            int responseStatus = response.getJSONObject("respHeader").getInt("responseCode");
+                    public void onResponse(Call call, Response data) throws IOException {
+                        if(data.isSuccessful()){
+                            sharedpreferences = context.getSharedPreferences("AppSdk", Context.MODE_PRIVATE);
+                            editor = sharedpreferences.edit();
+                            try {
+                                //dialog.dismiss();
+                                Headers headers = data.headers();
+                                String jsonData = data.body().string();
+                                JSONObject response = new JSONObject(jsonData);
+                                int responseStatus = response.getJSONObject("respHeader").getInt("responseCode");
 
-                            if (responseStatus == 200) {
-
-                                Log.d("headers.....: ", "> " + headers.length);
-                                for (int i = 0; i < headers.length; i++) {
-                                    Log.d("", "header (" + headers[i].getName() + ") -> " + headers[i].getValue());
-                                    if (headers[i].getName().equals("Authorization")) {
-                                        editor.putString("jwtTokenNew", headers[i].getValue()).commit();
+                                if (responseStatus == 200) {
+                                    for (int i = 0; i < headers.size(); i++) {
+                                       // System.out.println(headers.name(i) + ": " + headers.value(i));
+                                        if (headers.name(i).equalsIgnoreCase("Authorization")) {
+                                            if (headers.value(i) != null) {
+                                                SharedPreferences.Editor editor = sharedpreferences.edit();
+                                                editor.putString("jwtTokenNew", headers.value(i)).commit();
+                                            }
+                                        }
                                     }
-                                }
 
 
-                                getPaymentOptions(mid, context);
-                                if (listener != null) {
-                                    listener.onSuccess("0000"); // <---- fire listener here
-                                }
-
-
-                            } else {
-                                String errorText = "Server communication error (" + responseStatus + ")";
-
-                                switch (responseStatus) {
-                                    case 201: {
-                                        errorText = "Invalid credentials";
-                                        break;
+                                    getPaymentOptions(mid, context);
+                                    if (listener != null) {
+                                        Runnable myRunnable = new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                listener.onSuccess("0000"); // <---- fire listener here
+                                            } // This is your code
+                                        };
+                                        mainHandler.post(myRunnable);
                                     }
-                                    default: {
-                                        responseStatus = 101;
+
+
+                                } else {
+                                    String errorText = "Server communication error (" + responseStatus + ")";
+
+                                    switch (responseStatus) {
+                                        case 201: {
+                                            errorText = "Invalid credentials";
+                                            break;
+                                        }
+                                        default: {
+                                            responseStatus = 101;
+                                        }
                                     }
+                                    if (listener != null) {
+                                        final int finalResponseStatus = responseStatus;
+                                        Runnable myRunnable = new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                listener.onFailure(String.valueOf(finalResponseStatus)); // <---- fire listener here
+                                            } // This is your code
+                                        };
+                                        mainHandler.post(myRunnable);
+                                    }
+                                    //    Toast.makeText(context, errorText, Toast.LENGTH_LONG).show();
                                 }
-                                if (listener != null) {
-                                    listener.onFailure(String.valueOf(responseStatus)); // <---- fire listener here
-                                }
-                                //    Toast.makeText(context, errorText, Toast.LENGTH_LONG).show();
+                                // System.out.println("responseStatus=1111==" + responseStatus);
+                            } catch (JSONException e) {
+                                e.printStackTrace();
                             }
-                           // System.out.println("responseStatus=1111==" + responseStatus);
-                        } catch (JSONException e) {
-                            e.printStackTrace();
+                        }else {
+                            handleHttpError(data.code(), context, "login");
                         }
                     }
-
-                    @Override
-                    public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
-                        //  dialog.dismiss();
-                        // statusCode =504;
-                        handleHttpError(statusCode, context, "login");
-
-                        //Toast.makeText(context, "Unable to connect to server!!!", Toast.LENGTH_LONG).show();
-                    }
-
-                    @Override
-                    public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-                        //dialog.dismiss();
-                        handleHttpError(statusCode, context, "login");
-                    }
                 });
-
-
-                //return -1;
-
-
             } catch (Exception e) {
 
             }
-
-
         }
     }
     private void handleHttpError(int statusCode,Context context,String type) {
+        Handler mainHandler = new Handler(context.getMainLooper());
         String errorText = "Server communication error - #" + statusCode;
-     //   Toast.makeText(context, errorText, Toast.LENGTH_LONG).show();
+        //   Toast.makeText(context, errorText, Toast.LENGTH_LONG).show();
         if (statusCode == 403) {
             Application app = new Application();
             String mid= sharedpreferences.getString("mid",null).toString();
@@ -225,27 +234,45 @@ public class Application {
         } else {
             statusCode=504;
             if(type.equals("login")){
-                if (listener != null)
-                    listener.onFailure(String.valueOf(statusCode)); // <---- fire listener here
+                if (listener != null) {
+                    final int finalStatusCode = statusCode;
+                    Runnable myRunnable = new Runnable() {
+                        @Override
+                        public void run() {
+                            listener.onFailure(String.valueOf(finalStatusCode)); // <---- fire listener here
+                        } // This is your code
+                    };
+                    mainHandler.post(myRunnable);
+                }
+
             }
 
             if(type.equals("paymentopt") &&  paymentOptscope.equals("Direct")){
-               // Toast.makeText(context,"paymentOptscope inside errro function=="+paymentOptscope, Toast.LENGTH_LONG).show();
-                if (listener != null)
-                    listener.onFailure(String.valueOf(statusCode)); // <---- fire listener here
+                // Toast.makeText(context,"paymentOptscope inside errro function=="+paymentOptscope, Toast.LENGTH_LONG).show();
+                if (listener != null) {
+                    final int finalStatusCode1 = statusCode;
+                    Runnable myRunnable = new Runnable() {
+                        @Override
+                        public void run() {
+                            listener.onFailure(String.valueOf(finalStatusCode1)); // <---- fire listener here
+                        } // This is your code
+                    };
+                    mainHandler.post(myRunnable);
+                }
             }
 
         }
     }
 
     private void getPaymentOptions(final String mid,final Context context){
-       // Toast.makeText(context, "In Payment options..", Toast.LENGTH_LONG).show();
+        final Handler mainHandler = new Handler(context.getMainLooper());
+        // Toast.makeText(context, "In Payment options..", Toast.LENGTH_LONG).show();
         JSONObject jsonObjectHeader = new JSONObject();
         JSONObject jsonObjectBody = new JSONObject();
         JSONObject jsonP = new JSONObject();
         JSONObject jsonReq = new JSONObject();
-        ByteArrayEntity entity;
-       String token = sharedpreferences.getString("jwtTokenNew", null);
+
+        String token = sharedpreferences.getString("jwtTokenNew", null);
         try {
             jsonObjectHeader.put("userID", userId);
             jsonObjectHeader.put("parentMID", mid);
@@ -258,158 +285,156 @@ public class Application {
 
             jsonReq.put("requestData", jsonP);
 
-            entity = new ByteArrayEntity(jsonReq.toString().getBytes("UTF-8"));
-            entity.setContentType(new BasicHeader(HTTP.CONTENT_TYPE, "application/json"));
 
-            AsyncHttpClient client = new AsyncHttpClient();
-            client.setConnectTimeout(12000);
-            client.setMaxRetriesAndTimeout(1, 12000);
-            //Toast.makeText(getApplicationContext(),Settings.getSettings().getLogInIp(), Toast.LENGTH_LONG).show();
-           // System.out.println("Payment Url="+APISettings.getApiSettings().getPaymentOptUrl());
+            final MediaType JSON
+                    = MediaType.parse("application/json; charset=utf-8");
+            OkHttpClient client = new OkHttpClient();
+            RequestBody body = RequestBody.create(JSON, jsonReq.toString());
+            final Request request = new Request.Builder()
+                    .url(APISettings.getApiSettings().getPaymentOptUrl())
+                    .post(body)
+                    .build();
 
-            client.post(context, APISettings.getApiSettings().getPaymentOptUrl(), entity, "application/json", new JsonHttpResponseHandler() {
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+
+                }
 
                 @Override
-                public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
-                    sharedpreferences = context.getSharedPreferences("AppSdk", Context.MODE_PRIVATE);
-                    editor = sharedpreferences.edit();
-                    try {
-                        //dialog.dismiss();
-                        int responseStatus = response.getJSONObject("respHeader").getInt("responseCode");
-                     //   Toast.makeText(context, "responseStatus=="+responseStatus, Toast.LENGTH_LONG).show();
-                        if (responseStatus == 200) {
-                            for (int i = 0; i < headers.length; i++) {
-                                Log.d("", "header (" + headers[i].getName() + ") -> " + headers[i].getValue());
-                                if (headers[i].getName().equals("Authorization")) {
-                                    editor.putString("jwtTokenNew", headers[i].getValue()).commit();
+                public void onResponse(Call call, Response rdata) throws IOException {
+                    if(rdata.isSuccessful()){
+                        sharedpreferences = context.getSharedPreferences("AppSdk", Context.MODE_PRIVATE);
+                        editor = sharedpreferences.edit();
+                        try {
+                            //dialog.dismiss();
+                            Headers headers = rdata.headers();
+                            String jsonData = rdata.body().string();
+                            JSONObject response = new JSONObject(jsonData);
+                            final int responseStatus = response.getJSONObject("respHeader").getInt("responseCode");
+                            //   Toast.makeText(context, "responseStatus=="+responseStatus, Toast.LENGTH_LONG).show();
+                            if (responseStatus == 200) {
+                                for (int i = 0; i < headers.size(); i++) {
+                                 //   System.out.println(headers.name(i) + ": " + headers.value(i));
+                                    if (headers.name(i).equalsIgnoreCase("Authorization")) {
+                                        if (headers.value(i) != null) {
+                                            SharedPreferences.Editor editor = sharedpreferences.edit();
+                                            editor.putString("jwtTokenNew", headers.value(i)).commit();
+                                        }
+                                    }
                                 }
+
+                                String data = response.getJSONObject("respBody").getString("PaymentOption");
+
+                                if(data!=null || !data.equals("")) {
+
+                                    parseOptionData(data, context);
+                                    if(paymentOptscope.equals("Direct")){
+                                        // Toast.makeText(context,"paymentOptscope inside errro function=="+paymentOptscope, Toast.LENGTH_LONG).show();
+                                        if (listener != null){
+                                            Runnable myRunnable = new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    listener.onSuccess(String.valueOf("0000")); // <---- fire listener here
+                                                } // This is your code
+                                            };
+                                            mainHandler.post(myRunnable);
+                                        }
+                                    }
+
+                                }else{
+                                    editor.putString("paymentopt",null).commit();
+                                }
+
+
+
+
+                                // Log.d("response.....: ", "> " + response);
+
+                            } else {
+                                String errorText = "Server communication error (" + responseStatus + ")";
+
+                                switch (responseStatus) {
+                                    case 101: {
+                                        errorText = "Internal Error";
+                                        break;
+                                    }
+                                    case 205: {
+                                        errorText = "Payment Options not configured for this merchant";
+                                        break;
+                                    }
+                                    default: {
+                                    }
+                                }
+                                if(paymentOptscope.equals("Direct")){
+                                    if (listener != null) {
+                                        Runnable myRunnable = new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                listener.onFailure(String.valueOf(responseStatus)); // <---- fire listener here
+                                            } // This is your code
+                                        };
+                                        mainHandler.post(myRunnable);
+                                    }
+                                }
+                                //    Toast.makeText(context, errorText, Toast.LENGTH_LONG).show();
                             }
-
-
-                            String data = response.getJSONObject("respBody").getString("PaymentOption");
-
-
-
-
-
-
-
-                           if(data!=null || !data.equals("")) {
-
-                               parseOptionData(data, context);
-                            if(paymentOptscope.equals("Direct")){
-                                  // Toast.makeText(context,"paymentOptscope inside errro function=="+paymentOptscope, Toast.LENGTH_LONG).show();
-                                   if (listener != null)
-                                       listener.onSuccess(String.valueOf("0000")); // <---- fire listener here
-                               }
-
-                           }else{
-                               editor.putString("paymentopt",null).commit();
-                           }
-
-
-
-
-                            Log.d("response.....: ", "> " + response);
-
-                        } else {
-                            String errorText = "Server communication error (" + responseStatus + ")";
-
-                            switch (responseStatus) {
-                                case 101: {
-                                    errorText = "Internal Error";
-                                    break;
-                                }
-                                case 205: {
-                                    errorText = "Payment Options not configured for this merchant";
-                                    break;
-                                }
-                                default: {
-                                }
-                            }
-                            if(paymentOptscope.equals("Direct")){
-                                if (listener != null) {
-                                    listener.onFailure(String.valueOf(responseStatus)); // <---- fire listener here
-                                }
-                            }
-                            //    Toast.makeText(context, errorText, Toast.LENGTH_LONG).show();
+                            // System.out.println("responseStatus=1111==" + responseStatus);
+                        } catch (JSONException e) {
+                            e.printStackTrace();
                         }
-                       // System.out.println("responseStatus=1111==" + responseStatus);
-                    } catch (JSONException e) {
-                        e.printStackTrace();
+                    }else {
+                        handleHttpError(rdata.code(),context,"paymentopt");
                     }
                 }
-
-                @Override
-                public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
-                    //  dialog.dismiss();
-                   // Toast.makeText(context, "Unable to connect to server in payment options !!!", Toast.LENGTH_LONG).show();
-                    handleHttpError(statusCode,context,"paymentopt");
-
-                }
-
-                @Override
-                public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-                    //dialog.dismiss();
-                   // Toast.makeText(context, "Unable to connect to server in payment options !!!", Toast.LENGTH_LONG).show();
-                    handleHttpError(statusCode,context,"paymentopt");
-                }
             });
-
-            //return -1;
-
-
         } catch (Exception e) {
-                e.printStackTrace();
+            e.printStackTrace();
+        }
+    }
+    private void parseOptionData(String data,Context context){
+        //Toast.makeText(context,data,Toast.LENGTH_SHORT).show();
+        String opt[]=data.split(",");
+        String merchantPayOpt="";
+        String optval;
+        HashMap<String,String> map = new HashMap<String, String>();
+        sharedpreferences = context.getSharedPreferences("AppSdk", Context.MODE_PRIVATE);
+        editor = sharedpreferences.edit();
+        Gson gson=new Gson() ;
+        for(int i=0;i<opt.length;i++){
+
+            if(opt[i].contains(":")){
+                optval =  opt[i].split(":")[0];
+                map.put(optval,opt[i].split(":")[1]);
+                String json = gson.toJson(map);
+                //Toast.makeText(context,json,Toast.LENGTH_SHORT).show();
+                editor.putString("subpayopt", json);
+                editor.commit();
+
+            }else{
+                optval = opt[i];
+            }
+            merchantPayOpt = merchantPayOpt + optval+",";
+
+
         }
 
-        System.out.println("Outside catch .....!!");
+        merchantPayOpt =  merchantPayOpt.replaceAll("]","");
+        merchantPayOpt =  merchantPayOpt.replace("\"", "");
+        merchantPayOpt =  merchantPayOpt.substring(1);
+
+        merchantPayOpt = merchantPayOpt.substring(0, merchantPayOpt.length()-1);
+
+        editor.putString("paymentopt",merchantPayOpt).commit();
+        //Toast.makeText(context,merchantPayOpt,Toast.LENGTH_SHORT).show();
+
+
 
 
     }
-        private void parseOptionData(String data,Context context){
-            //Toast.makeText(context,data,Toast.LENGTH_SHORT).show();
-            String opt[]=data.split(",");
-            String merchantPayOpt="";
-            String optval;
-            HashMap<String,String> map = new HashMap<String, String>();
-            sharedpreferences = context.getSharedPreferences("AppSdk", Context.MODE_PRIVATE);
-            editor = sharedpreferences.edit();
-            Gson gson=new Gson() ;
-            for(int i=0;i<opt.length;i++){
-
-                if(opt[i].contains(":")){
-                    optval =  opt[i].split(":")[0];
-                    map.put(optval,opt[i].split(":")[1]);
-                    String json = gson.toJson(map);
-                    //Toast.makeText(context,json,Toast.LENGTH_SHORT).show();
-                    editor.putString("subpayopt", json);
-                    editor.commit();
-
-                }else{
-                    optval = opt[i];
-                }
-                merchantPayOpt = merchantPayOpt + optval+",";
 
 
-            }
-
-            merchantPayOpt =  merchantPayOpt.replaceAll("]","");
-            merchantPayOpt =  merchantPayOpt.replace("\"", "");
-            merchantPayOpt =  merchantPayOpt.substring(1);
-
-            merchantPayOpt = merchantPayOpt.substring(0, merchantPayOpt.length()-1);
-
-            editor.putString("paymentopt",merchantPayOpt).commit();
-            //Toast.makeText(context,merchantPayOpt,Toast.LENGTH_SHORT).show();
-
-
-
-
-        }
-
-
-        public static String bytesToHex(byte[] in) {
+    public static String bytesToHex(byte[] in) {
         final StringBuilder builder = new StringBuilder();
         for (byte b : in) {
             builder.append(String.format("%02x:", b));
@@ -424,7 +449,7 @@ public class Application {
         int flags = PackageManager.GET_SIGNATURES;
 
         PackageInfo packageInfo = null;
-       // System.out.println("packageName===" + packageName);
+        // System.out.println("packageName===" + packageName);
         try {
             packageInfo = pm.getPackageInfo(packageName, flags);
         } catch (PackageManager.NameNotFoundException e) {
@@ -463,10 +488,10 @@ public class Application {
             hexval = hexval.substring(0, hexval.length() - 1);
 
 
-            Log.d("Example", "Cer: " + hexval);
+            // Log.d("Example", "Cer: " + hexval);
             userId = hexval + packageName;
             userId = userId.toUpperCase();
-           // System.out.println("User Id===" + userId);
+            // System.out.println("User Id===" + userId);
         } catch (Exception e1) {
             e1.printStackTrace();
         }

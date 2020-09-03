@@ -5,8 +5,8 @@ import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.text.TextUtils;
+import android.util.Base64;
 
-import com.loopj.android.http.Base64;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -32,7 +32,6 @@ import javax.crypto.spec.SecretKeySpec;
 public class Utility extends Activity {
 
 	public static boolean isConectionAvailable(Context context) {
-
 		ConnectivityManager cm =
 				(ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
 
@@ -49,7 +48,7 @@ public class Utility extends Activity {
 			hashedBytes = md.digest(message.getBytes("UTF-8"));
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+		//	e.printStackTrace();
 		}
 		return bytesToHex(hashedBytes);
 	}
@@ -66,14 +65,14 @@ public class Utility extends Activity {
                 hashInputkey += entry.getKey();
             }
         }
-        System.out.println("hashInputkey > " + hashInputkey);
+      //  System.out.println("hashInputkey > " + hashInputkey);
 
 		for (Map.Entry<String, String> entry : paramsMap.entrySet()) {
 			if (!TextUtils.isEmpty(entry.getValue())) {
 				hashInput += entry.getValue();
 			}
 		}
-		System.out.println("hashInput > " + hashInput);
+	//	System.out.println("hashInput > " + hashInput);
 		String secureHash = Utility.generateHMAC(hashInput, secureToken);
 		return secureHash;
 	}
@@ -121,7 +120,7 @@ public class Utility extends Activity {
 			 tokendata = new String(data, "UTF-8");
 
 		}catch (Exception e){
-				e.printStackTrace();
+				//e.printStackTrace();
 		}
 		return tokendata;
 	}
@@ -142,18 +141,18 @@ public class Utility extends Activity {
 		String expformattedDate = sdf.format(dte);
 		String todaydate = sdf.format(new Date());
 
-		System.out.println("formattedDate----"+expformattedDate);
-		System.out.println("todaydate----"+todaydate);
+	//	System.out.println("formattedDate----"+expformattedDate);
+	//	System.out.println("todaydate----"+todaydate);
 
 		Date expformatteddate = sdf.parse(expformattedDate);
 		Date  todayDate = sdf.parse(todaydate);
 
 
 		if (todayDate.compareTo(expformatteddate) > 0) {
-			System.out.println("Expird");
+	//		System.out.println("Expird");
 			return true;
 		} else if (todayDate.compareTo(expformatteddate) < 0) {
-			System.out.println("Not Expird");
+	//		System.out.println("Not Expird");
 			return false;
 		}
 
@@ -215,7 +214,7 @@ public class Utility extends Activity {
 
 
 		} catch (Exception e) {
-			e.printStackTrace();
+	//		e.printStackTrace();
 		}
 
 		return text;
@@ -233,7 +232,7 @@ public class Utility extends Activity {
 		    hashedBytes = sha256_HMAC.doFinal(message.getBytes());		    
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+	//		e.printStackTrace();
 		}
 		
 		//Check here 
@@ -248,7 +247,7 @@ public class Utility extends Activity {
 			}
 		} catch (Exception e) {
 			// TODO: handle exception
-			e.printStackTrace();
+	//		e.printStackTrace();
 		}
 		return stringBuffer.toString();
 	}
