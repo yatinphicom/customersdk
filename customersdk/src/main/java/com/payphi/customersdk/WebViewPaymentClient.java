@@ -13,8 +13,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.RequiresApi;
 import android.util.Base64;
-import android.util.Log;
-import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -23,7 +21,6 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import java.util.List;
-
 /**
  * Created by jayesh on 24-05-2017.
  */
@@ -36,7 +33,6 @@ public class WebViewPaymentClient extends Activity {
         super.onCreate(savedInstanceState);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         this.setContentView(R.layout.paywebview);
-
         if(getIntent().getSerializableExtra("formurl") != null) {
             formUrl= getIntent().getSerializableExtra("formurl").toString();
             //Log.d("formUrl",formUrl);
@@ -46,7 +42,6 @@ public class WebViewPaymentClient extends Activity {
 
         WebView webView = (WebView) this.findViewById(R.id.paywebviewId);
         webView.getSettings().setJavaScriptEnabled(true);
-       // webView.setWebContentsDebuggingEnabled(true);
         webView.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
         webView.getSettings().setLoadsImagesAutomatically(true);
 
@@ -65,6 +60,7 @@ public class WebViewPaymentClient extends Activity {
         webView.getSettings().setAllowFileAccess(true);
 
         webView.getSettings().setAppCacheEnabled(true);
+
         webView.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT); // load online by
         // default
 
@@ -109,7 +105,6 @@ public class WebViewPaymentClient extends Activity {
 
                @Override
                public void onPageFinished(WebView view, String url) {
-
                    Intent intent = new Intent();
                    Uri uri = Uri.parse(url);
 
@@ -206,6 +201,5 @@ public class WebViewPaymentClient extends Activity {
         builder.setMessage("Are you sure you want to cancel the ongoing payment?").setPositiveButton("Cancel", dialogClickListener)
                 .setNegativeButton("Do not cancel", dialogClickListener).show();
     }
-
     }
 

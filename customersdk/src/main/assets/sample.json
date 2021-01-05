@@ -1,0 +1,3 @@
+{
+  "photos": [{"name": "GPay","url": "https://www.androidcentral.com/sites/androidcentral.com/files/styles/large/public/article_images/2020/11/google-pay-icon-update.png","action": "com.google.android.apps.nbu.paisa.user"},{"name": "Bhim App","url": "https://cdn.iconscout.com/icon/free/png-512/bhim-3-69845.png","action": "in.org.npci.upiapp"},{"name": "Paytm","url": "https://cdn2.iconfinder.com/data/icons/social-icons-color/512/paytm-512.png","action": "net.one97.paytm"},{"name": "PhonePe","url": "https://www.searchpng.com/wp-content/uploads/2018/11/phone-pe.png","action": "com.phonepe.app"}]
+}

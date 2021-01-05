@@ -70,8 +70,7 @@
 
         </LinearLayout>
 
-        <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-            xmlns:app="http://schemas.android.com/apk/res-auto"
+        <RelativeLayout
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
             android:orientation="vertical">
@@ -339,26 +338,74 @@
                 <TextView
                     android:id="@+id/msgId"
                     android:layout_width="wrap_content"
-                    android:layout_height="87dp"
+                    android:layout_height="92dp"
                     android:layout_below="@+id/ll1"
                     android:layout_alignParentStart="true"
                     android:layout_alignParentLeft="true"
                     android:layout_alignParentEnd="true"
                     android:layout_alignParentRight="true"
-                    android:layout_marginStart="32dp"
-                    android:layout_marginLeft="32dp"
-                    android:layout_marginTop="23dp"
-                    android:layout_marginEnd="32dp"
-                    android:layout_marginRight="32dp"
+                    android:layout_marginStart="35dp"
+                    android:layout_marginLeft="35dp"
+                    android:layout_marginTop="17dp"
+                    android:layout_marginEnd="29dp"
+                    android:layout_marginRight="29dp"
                     android:lineSpacingExtra="6dp"
                     android:padding="6dp"
                     android:text="In case you have done payment click verify payment button"
                     android:textAlignment="center"
                     android:textStyle="bold" />
 
+                <TextView
+                    android:id="@+id/chooseUpi"
+                    android:layout_width="282dp"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/ll1"
+                    android:layout_alignParentStart="true"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentEnd="true"
+                    android:layout_alignParentRight="true"
+                    android:layout_marginStart="71dp"
+                    android:layout_marginLeft="71dp"
+                    android:layout_marginTop="42dp"
+                    android:layout_marginEnd="58dp"
+                    android:layout_marginRight="58dp"
+                    android:text="Choose UPI application"
+                    android:textAlignment="center"
+                    android:textSize="16dp"
+                    android:textStyle="bold"></TextView>
+
+                <android.support.v7.widget.RecyclerView
+                    android:id="@+id/imageList"
+                    android:layout_width="match_parent"
+                    android:layout_height="146dp"
+                    android:layout_alignTop="@+id/rl_progressbar"
+                    android:layout_marginTop="-32dp"></android.support.v7.widget.RecyclerView>
+
+                <Button
+                    android:id="@+id/showMoreApps"
+                    android:layout_width="186dp"
+                    android:textSize="14dp"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/imageList"
+                    android:layout_alignParentStart="true"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentEnd="true"
+                    android:layout_alignParentRight="true"
+                    android:layout_marginStart="112dp"
+                    android:layout_marginLeft="112dp"
+                    android:layout_marginTop="23dp"
+                    android:layout_marginEnd="113dp"
+                    android:layout_marginRight="113dp"
+                    android:background="#3F51B5"
+                    android:text="Show more apps"
+                    android:textAllCaps="false"
+                    android:textColor="#ffffff"
+                    android:textStyle="bold" />
+
                 <Button
                     android:id="@+id/proceedtoPayId"
                     android:layout_width="357dp"
+                    android:visibility="gone"
                     android:layout_height="wrap_content"
                     android:layout_alignParentStart="true"
                     android:layout_alignParentLeft="true"
